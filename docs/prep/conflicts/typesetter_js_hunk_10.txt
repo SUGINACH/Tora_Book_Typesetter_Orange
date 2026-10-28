@@ -1,0 +1,30 @@
+# typesetter.js hunk 10 — שורה 2496, פונקציה מקיפה: balanceColumns
+
+===== GREEN (HEAD של Green) =====
+        const res = { k, rH, lH, diff, abs: Math.abs(diff), fits: Math.max(rH, lH) <= availableHeight, over: Math.max(rH, lH), valid, rightPartLines, leftPartLines };
+
+===== GOLD (HEAD של Gold) =====
+        // [חדש — דיוק Finding 2] בדוק האם השורה האחרונה של ה-p-cut הימני דלילה.
+        // אם כן, סמן sparse=true והוסף עונש וירטואלי ל-cost.
+        let sparse = false;
+        let sparseInfo = null;
+        if (c.l > 0) {
+            const pRight = rCol.lastElementChild;
+            if (pRight && pRight.tagName === 'P' && pRight.classList.contains('p-cut')) {
+                sparseInfo = getLastLineInfo(pRight);
+                if (sparseInfo && sparseInfo.lineCount > 1 &&
+                    sparseInfo.firstW > 0 &&
+                    sparseInfo.lastW < sparseInfo.firstW * SPARSE_LAST_LINE_RATIO) {
+                    sparse = true;
+                }
+            }
+        }
+        const absDiff = Math.abs(diff);
+        const cost = absDiff + (sparse ? SPARSE_PENALTY_PX : 0);
+        const res = {
+            k, rH, lH, diff,
+            abs: absDiff,
+            fits: Math.max(rH, lH) <= availableHeight,
+            over: Math.max(rH, lH),
+            sparse, sparseInfo, cost
+        };

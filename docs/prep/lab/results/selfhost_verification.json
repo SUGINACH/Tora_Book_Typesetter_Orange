@@ -1,0 +1,17 @@
+{
+ "engine": "green_0ddaf89 + self-hosted fonts (no network, no interception)",
+ "pages": 639,
+ "issues": 40,
+ "high": 0,
+ "medium": 12,
+ "low": 28,
+ "kinds": {
+  "container-gap": 13,
+  "structural-fallback": 6,
+  "imbalance": 9,
+  "sparse-page": 3,
+  "containment-rounding": 6,
+  "square-bracket-scope": 3
+ },
+ "consoleErrors": []
+}

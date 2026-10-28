@@ -1,0 +1,124 @@
+# typesetter.js hunk 12 — שורה 2706, פונקציה מקיפה: balanceColumns
+
+===== GREEN (HEAD של Green) =====
+    // The selected split may fit exactly; a final line-height justification can still
+    // increase rendered paragraph/outer-box height. Snapshot attributes and roll back
+    // that cosmetic adjustment if it violates the hard fit constraint.
+    const beforeFinalJustify = Array.from(block.querySelectorAll('*')).map(el =>
+        [el, Array.from(el.attributes).map(attr => [attr.name, attr.value])]);
+    const beforeFinalRightHeight = rCol.scrollHeight;
+    const beforeFinalLeftHeight = lCol.scrollHeight;
+    const beforeFinalOuterHeight = block.getBoundingClientRect().height;
+    const beforeFinalRightCapacity = getJustifyCapacityAudit(rCol);
+    const beforeFinalLeftCapacity = getJustifyCapacityAudit(lCol);
+    const finalDiff = beforeFinalRightHeight - beforeFinalLeftHeight;
+    let targetCol = null, targetHeight = null, targetSide = 'none';
+    if (finalDiff > 0.5) {
+        targetCol = lCol;
+        targetHeight = beforeFinalRightHeight;
+        targetSide = 'left';
+        justifyColumnVertically(lCol, targetHeight, styleObj, BALANCE_FINAL_JUSTIFY_MAX);
+    } else if (finalDiff < -0.5) {
+        targetCol = rCol;
+        targetHeight = beforeFinalLeftHeight;
+        targetSide = 'right';
+        justifyColumnVertically(rCol, targetHeight, styleObj, BALANCE_FINAL_JUSTIFY_MAX);
+    }
+
+    // Correct a local final-justify overshoot before accepting the cosmetic adjustment.
+    // The global pass already does this; without the same guard here, a target gap of 14px
+    // can turn into a 7px opposite-side gap when padding/line-height adjustment overshoots.
+    const overshootBeforeShrink = targetCol ? targetCol.scrollHeight - targetHeight : null;
+    if (targetCol && overshootBeforeShrink > 0.5) {
+        shrinkColumnVertically(targetCol, targetHeight, styleObj, BALANCE_FINAL_JUSTIFY_MAX);
+    }
+    const overshootAfterShrink = targetCol ? targetCol.scrollHeight - targetHeight : null;
+    const attemptedRightHeight = rCol.scrollHeight;
+    const attemptedLeftHeight = lCol.scrollHeight;
+    const attemptedOuterHeight = block.getBoundingClientRect().height;
+    const postJustifyInner = Math.max(attemptedRightHeight, attemptedLeftHeight);
+    const justifyOverflows = postJustifyInner > availableHeight + 0.5 || attemptedOuterHeight > availableHeight + 0.5;
+    const attemptedDiff = attemptedRightHeight - attemptedLeftHeight;
+    const balanceWorsened = Math.abs(attemptedDiff) > Math.abs(finalDiff) + 0.5;
+    const rollbackReason = best.fits && justifyOverflows
+        ? 'final-justify-exceeded-available-height'
+        : balanceWorsened
+            ? 'final-justify-worsened-balance'
+            : 'none';
+
+    block.setAttribute('data-layout-final-justify-capacity-before', JSON.stringify({
+        right: beforeFinalRightCapacity,
+        left: beforeFinalLeftCapacity
+    }));
+    block.setAttribute('data-layout-final-justify-capacity-after', JSON.stringify({
+        right: getJustifyCapacityAudit(rCol),
+        left: getJustifyCapacityAudit(lCol)
+    }));
+    block.setAttribute('data-layout-final-justify-target-side', targetSide);
+    block.setAttribute('data-layout-final-justify-target-height', targetHeight === null ? '' : String(targetHeight));
+    block.setAttribute('data-layout-final-justify-before-right', String(beforeFinalRightHeight));
+    block.setAttribute('data-layout-final-justify-before-left', String(beforeFinalLeftHeight));
+    block.setAttribute('data-layout-final-justify-before-outer', String(beforeFinalOuterHeight));
+    block.setAttribute('data-layout-final-justify-attempt-right', String(attemptedRightHeight));
+    block.setAttribute('data-layout-final-justify-attempt-left', String(attemptedLeftHeight));
+    block.setAttribute('data-layout-final-justify-attempt-outer', String(attemptedOuterHeight));
+    block.setAttribute('data-layout-final-justify-balance-before-diff', String(finalDiff));
+    block.setAttribute('data-layout-final-justify-balance-attempt-diff', String(attemptedDiff));
+    block.setAttribute('data-layout-final-justify-overshoot-before-shrink',
+        overshootBeforeShrink === null ? 'none' : String(overshootBeforeShrink));
+    block.setAttribute('data-layout-final-justify-overshoot-after-shrink',
+        overshootAfterShrink === null ? 'none' : String(overshootAfterShrink));
+    block.setAttribute('data-layout-balance-final-justify-rollback-reason', rollbackReason);
+
+    if (rollbackReason !== 'none') {
+        for (const [el, attrs] of beforeFinalJustify) {
+            for (const attr of Array.from(el.attributes)) el.removeAttribute(attr.name);
+            for (const [name, value] of attrs) el.setAttribute(name, value);
+        }
+        block.setAttribute('data-layout-balance-final-justify-rolled-back', 'true');
+        repositionBlockNotes(block, Math.max(rCol.scrollHeight, lCol.scrollHeight));
+    } else {
+        block.setAttribute('data-layout-balance-final-justify-rolled-back', 'false');
+    }
+
+    // Separate the chosen-candidate metrics above from the geometry that actually
+    // survives final justification/rollback. Audit tools should use these final fields
+    // when answering "what is on the page?", and the balance fields when answering "why was this split selected?".
+    const finalRightHeight = rCol.scrollHeight;
+    const finalLeftHeight = lCol.scrollHeight;
+    const finalOuterHeight = block.getBoundingClientRect().height;
+    const finalFits = Math.max(finalRightHeight, finalLeftHeight, finalOuterHeight) <= availableHeight + 0.5;
+    block.setAttribute('data-layout-final-right-height', String(finalRightHeight));
+    block.setAttribute('data-layout-final-left-height', String(finalLeftHeight));
+    block.setAttribute('data-layout-final-diff', String(finalRightHeight - finalLeftHeight));
+    block.setAttribute('data-layout-final-inner-height', String(Math.max(finalRightHeight, finalLeftHeight)));
+    block.setAttribute('data-layout-final-outer-height', String(finalOuterHeight));
+    block.setAttribute('data-layout-final-fits', String(finalFits));
+    finalizeNotePositions(finalNotes, Math.max(finalRightHeight, finalLeftHeight));
+    return { rH: finalRightHeight, lH: finalLeftHeight, fits: finalFits };
+
+===== GOLD (HEAD של Gold) =====
+    // [הערה] balanceByWordSpacing הוסר מכאן כי הוא יכול לשבור את האיזון שכבר נעשה
+    // על-ידי חלוקת פסקאות. חלוקת עומס פועלת רק ב-Branch 4 (עמוד רגיל).
+    // [תיקון רגרסיה — מניעת overshoot] אל תמתח מעבר ל-availableHeight.
+    // אם הטור הארוך כבר חורג מ-availableHeight, אל תמתח את הקצר אליו — זה רק יגרום לשניים לחרוג.
+    const maxAllowedH = Math.min(availableHeight, Math.max(rCol.scrollHeight, lCol.scrollHeight));
+    const finalDiff = rCol.scrollHeight - lCol.scrollHeight;
+    if (finalDiff > 0.5) {
+        // rCol ארוך יותר — מתח את lCol ל-min(rCol.scrollHeight, availableHeight)
+        const target = Math.min(rCol.scrollHeight, maxAllowedH);
+        if (target > lCol.scrollHeight + 1) {
+            justifyColumnVertically(lCol, target, styleObj, BALANCE_FINAL_JUSTIFY_MAX);
+        }
+    } else if (finalDiff < -0.5) {
+        const target = Math.min(lCol.scrollHeight, maxAllowedH);
+        if (target > rCol.scrollHeight + 1) {
+            justifyColumnVertically(rCol, target, styleObj, BALANCE_FINAL_JUSTIFY_MAX);
+        }
+    }
+
+    finalizeNotePositions(finalNotes, Math.max(rCol.scrollHeight, lCol.scrollHeight));
+    // [תיקון 1] תקן first-word-window — רק הפסקה הראשונה בכל טור צריכה לקבל window.
+    fixDropWordInColumns(block);
+
+    return { rH: rCol.scrollHeight, lH: lCol.scrollHeight, fits: Math.max(rCol.scrollHeight, lCol.scrollHeight) <= availableHeight };

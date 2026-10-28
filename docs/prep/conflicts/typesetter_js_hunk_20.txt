@@ -1,0 +1,18 @@
+# typesetter.js hunk 20 — שורה 6746, פונקציה מקיפה: typesetDocumentCore
+
+===== GREEN (HEAD של Green) =====
+                globalJustifyOvershootAfterShrink = rC.scrollHeight - lH;
+
+===== GOLD (HEAD של Gold) =====
+                // [חדש — B1 תיקון] אם ימין לא הצליח להגיע לשמאל (פער נותר > 5px),
+                // נסה לכווץ את שמאל לגובה של ימין.
+                const rHfinal = rC.scrollHeight;
+                const remainingDiff = lH - rHfinal;
+                if (remainingDiff > 5) {
+                    const lHbefore = lC.scrollHeight;
+                    shrinkColumnVertically(lC, rHfinal, styleObj, 150);
+                    const lHafter2 = lC.scrollHeight;
+                    if (Math.abs(lHafter2 - rHfinal) < Math.abs(lHbefore - rHfinal)) {
+                        lH = lHafter2;
+                    }
+                }

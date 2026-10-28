@@ -1,0 +1,54 @@
+# typesetter.js hunk 13 — שורה 3902, פונקציה מקיפה: flushFootnotesInto
+
+===== GREEN (HEAD של Green) =====
+    // Force a synchronous layout read after insertion, then preserve the measured delta
+    // on the page so the long-document audit can report the exact source of live overflow.
+    const bodyFlowAfter = wrapper?.querySelector('.page-body-flow');
+    const afterFlowRect = bodyFlowAfter?.getBoundingClientRect();
+    const afterLastBlock = bodyFlowAfter?.lastElementChild;
+    const afterLastBlockRect = afterLastBlock?.getBoundingClientRect();
+    const setMetric = (name, value) => {
+        if (value !== null && value !== undefined && Number.isFinite(value)) {
+            pageEl.setAttribute(name, String(Math.round(value * 100) / 100));
+        }
+    };
+    pageEl.setAttribute('data-fn-reflow-queue-count', String(queueCountBeforeFlush));
+    setMetric('data-fn-reflow-predicted-height', predictedFootnoteHeight);
+    setMetric('data-fn-reflow-before-flow-height', beforeFlowRect?.height);
+    setMetric('data-fn-reflow-after-flow-height', afterFlowRect?.height);
+    setMetric('data-fn-reflow-flow-height-delta', beforeFlowRect && afterFlowRect ? afterFlowRect.height - beforeFlowRect.height : null);
+    setMetric('data-fn-reflow-before-last-block-height', beforeLastBlockRect?.height);
+    setMetric('data-fn-reflow-after-last-block-height', afterLastBlockRect?.height);
+    setMetric('data-fn-reflow-after-last-block-overflow', afterLastBlockRect && afterFlowRect ? afterLastBlockRect.bottom - afterFlowRect.bottom : null);
+    setMetric('data-fn-reflow-last-block-top-offset', afterLastBlockRect && afterFlowRect ? afterLastBlockRect.top - afterFlowRect.top : null);
+
+===== GOLD (HEAD של Gold) =====
+    // [תיקון רגרסיה קריטי — כיווץ blocks אחרי הוספת fnArea]
+    // אחרי הוספת fnArea, ה-flow clientHeight קטן. אם ה-blocks חורגים עכשיו, כווץ אותם.
+    // הסיבה: balanceColumns + stretchPageToBottom פעלו לפני הוספת ה-fnArea, כשהיה יותר מקום.
+    // עכשיו, כשה-fnArea תופס מקום, ה-blocks חורגים ב-30-60px.
+    const flow = pageEl.querySelector('.page-body-flow');
+    if (flow) {
+        const flowMaxH = flow.clientHeight;
+        const blocks = flow.querySelectorAll('.block-2col');
+        // בנה styleObj מה-flow עצמו
+        const flowStyle = {
+            fontFamily: getComputedStyle(flow).fontFamily,
+            fontSize: getComputedStyle(flow).fontSize,
+            lineHeight: getComputedStyle(flow).lineHeight,
+        };
+        blocks.forEach(blk => {
+            const rC = blk.querySelector('.right-col');
+            const lC = blk.querySelector('.left-col');
+            if (!rC || !lC) return;
+            const blockH = Math.max(rC.scrollHeight, lC.scrollHeight);
+            const blockTopInFlow = blk.getBoundingClientRect().top - flow.getBoundingClientRect().top;
+            const allowedH = flowMaxH - blockTopInFlow - 2;
+            if (blockH > allowedH && allowedH > 100) {
+                const overflow = blockH - allowedH;
+                shrinkColumnVertically(rC, allowedH, flowStyle, overflow + 10);
+                shrinkColumnVertically(lC, allowedH, flowStyle, overflow + 10);
+                repositionBlockNotes(blk, Math.max(rC.scrollHeight, lC.scrollHeight));
+            }
+        });
+    }

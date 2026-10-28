@@ -1,0 +1,30 @@
+# typesetter.js hunk 14 — שורה 5678, פונקציה מקיפה: typesetDocumentCore
+
+===== GREEN (HEAD של Green) =====
+                const flowBottom = flow.getBoundingClientRect().bottom;
+                const reservedHeight = reservedNow();
+                const free = (flowBottom - reservedHeight) - lastEl.getBoundingClientRect().bottom - 1;
+                recordLayoutGeometryStage(lastEl, 'before-page-stretch', flow, {
+                    freeSpace: Math.round(free * 1000) / 1000,
+                    reservedHeight: Math.round(reservedHeight * 1000) / 1000
+                });
+                const stretchApplied = stretchLastBlockToBottom(flow, free, styleObj, PAGE_STRETCH_MAX);
+                const finalEl = flow.lastElementChild;
+                if (finalEl?.classList?.contains('block-2col') || finalEl?.classList?.contains('block-single-col')) {
+                    recordLayoutGeometryStage(finalEl, 'after-page-stretch', flow, {
+                        freeSpace: Math.round(free * 1000) / 1000,
+                        reservedHeight: Math.round(reservedHeight * 1000) / 1000,
+                        stretchApplied
+                    });
+                }
+
+===== GOLD (HEAD של Gold) =====
+                const flowBottom = flow.getBoundingClientRect().top + totalFlowH;
+                // [תיקון רגרסיה קריטי — מניעת overshoot של 50+px]
+                // השתמש ב-flow.clientHeight במקום ב-rect.height, כי scrollHeight יכול להיות גדול יותר מ-clientHeight
+                // כשיש כבר overflow מבלוקים קודמים. אם נשתמש ב-rect.height (ששווה ל-clientHeight), נקבל יעד נכון.
+                // אבל אם ה-lastEl עצמו כבר חורג, נקבל free שלילי ולא נמתח — וזה בדיוק מה שאנחנו רוצים.
+                const lastElBottom = lastEl.getBoundingClientRect().bottom;
+                const free = (flowBottom - reservedNow()) - lastElBottom - 1;
+                if (free <= 0.5) return; // אין מקום למתיחה — אל תמתח
+                stretchLastBlockToBottom(flow, free, styleObj, PAGE_STRETCH_MAX);

@@ -1,0 +1,114 @@
+# DRAFT — לא מופעל, לא נדחף. מיועד לבדיקה שלך לפני שימוש.
+# מטרה: מדידת בסיס (שלב 0) — שני המנועים × שני הטקסטים, על SHA נעולים.
+#
+# אילוצים שאומתו בקוד (לא הנחות):
+#  1. אין package-lock.json באף ריפו, ו-playwright צף (^1.55 ב-Green, ^1.49 ב-Gold) => גרסת Chromium משתנה בין ריצות.
+#  2. ה-CLI של Green (tools/geometry-audit-cli.js) דורש decision-ledger. במנוע Gold יש 0 הפניות ל-data-layout-decision-record,
+#     ולכן שער instrumentationIntegrityFailures ייכשל על מנוע Gold. לכן ל-Gold משתמשים בריצן הפרקים שלו (scripts/test-chapters-enhanced.js).
+#  3. הריצן של Gold מקבל TEST_TEXT_PATH ו-RESULTS_DIR כמשתני סביבה, ולכן אפשר להריץ אותו על כל אחד מהטקסטים.
+#  4. ה-CLI של Green אינו רושם גרסת דפדפן בדוח. הטיוטה רושמת אותה בנפרד (שלב fingerprint) כדי שאפשר יהיה לייחס הבדלים.
+#
+# הערה: מנועי Green/Gold הנוכחיים טוענים גופנים מ-fonts.googleapis.com (06 F1). ב-CI עם רשת זה עובד, ובלי רשת המנוע נכשל. בריפו החדש יש לאחסן את הגופנים עצמית (07, שלב 2.1).
+# להשלמה לפני הרצה: פקודת הפרקים של Gold (TODO בשלב gold-engine).
+name: engine-matrix-baseline (DRAFT)
+
+on:
+  workflow_dispatch:
+    inputs:
+      green_sha: { description: 'Green SHA', default: '0ddaf890', required: true }
+      gold_sha:  { description: 'Gold SHA',  default: '31ed2ca8', required: true }
+
+env:
+  PLAYWRIGHT_VERSION: '1.55.0'   # מוצע (Chromium 140.0.7339.16). ראו 06_LAB_FINDINGS F6
+
+jobs:
+  green-engine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        text: [green-text, base-text]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: SUGINACH/Tora_Book_Typesetter_Green
+          ref: '${{ inputs.green_sha }}'
+          path: engine
+      - uses: actions/checkout@v4
+        with: { path: fixtures-repo }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Select text
+        run: |
+          mkdir -p engine/artifacts
+          if [ "${{ matrix.text }}" = "green-text" ]; then cp engine/very_long_test_text.txt text.txt
+          else cp fixtures-repo/fixtures/base_very_long_test_text.txt text.txt; fi
+          wc -c text.txt; sha256sum text.txt
+      - name: 'Install (exact Playwright)'
+        working-directory: engine
+        run: |
+          npm install --no-save playwright@${PLAYWRIGHT_VERSION}
+          npx playwright install --with-deps chromium
+      - name: 'Fingerprint (browser version recorded explicitly)'
+        working-directory: engine
+        run: |
+          node -e "const {chromium}=require('playwright');(async()=>{const b=await chromium.launch();console.log(JSON.stringify({chromium:b.version(),playwright:require('playwright/package.json').version,node:process.version,sha:process.env.GITHUB_SHA}));await b.close()})()" | tee artifacts/fingerprint-${{ matrix.text }}.json
+      - name: 'Audit (measurement only, no --fail-on gate)'
+        working-directory: engine
+        run: >
+          node tools/geometry-audit-cli.js --input ../text.txt --timeout-ms 900000 --fail-on none --repeat-check
+          --step-audit-disabled
+          --report ./artifacts/geometry-audit-${{ matrix.text }}.json
+          --summary ./artifacts/geometry-audit-summary-${{ matrix.text }}.md
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 'green-engine-${{ matrix.text }}'
+          path: engine/artifacts
+
+  gold-engine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        text: [green-text, base-text]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: SUGINACH/Tora_Book_Typesetter_Gold
+          ref: '${{ inputs.gold_sha }}'
+          path: engine
+      - uses: actions/checkout@v4
+        with: { path: fixtures-repo }
+      - uses: actions/checkout@v4
+        with:
+          repository: SUGINACH/Tora_Book_Typesetter_Green
+          ref: '${{ inputs.green_sha }}'
+          path: green-ref
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Select text
+        run: |
+          if [ "${{ matrix.text }}" = "green-text" ]; then cp green-ref/very_long_test_text.txt "$PWD/text.txt"
+          else cp fixtures-repo/fixtures/base_very_long_test_text.txt "$PWD/text.txt"; fi
+          sha256sum text.txt
+      - name: 'Install (exact Playwright)'
+        working-directory: engine
+        run: |
+          npm install --no-save playwright@${PLAYWRIGHT_VERSION}
+          npx playwright install --with-deps chromium
+      - name: 'Run chapters (N to be read from the runner, see note)'
+        working-directory: engine
+        env:
+          TEST_TEXT_PATH: ${{ github.workspace }}/text.txt
+          RESULTS_DIR: ${{ github.workspace }}/engine/results-${{ matrix.text }}
+        run: |
+          # הערה: ה-regression-test.yml של Gold מגדיר את מספר הפרקים וההרצה. יש להעתיק ממנו את הפקודה המדויקת (לא הועתקה כאן כדי לא להניח).
+          echo "TODO: copy exact invocation from Gold .github/workflows/regression-test.yml"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 'gold-engine-${{ matrix.text }}'
+          path: 'engine/results-${{ matrix.text }}'

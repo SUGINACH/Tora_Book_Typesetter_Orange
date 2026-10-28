@@ -1,0 +1,66 @@
+# typesetter.js hunk 18 — שורה 6514, פונקציה מקיפה: typesetDocumentCore
+
+===== GREEN (HEAD של Green) =====
+    // Capture the exact geometry immediately before and after cross-paragraph
+    // parenthesis styling. This is diagnostics only: it must not alter layout decisions.
+    const crossParenBefore = new Map();
+    const crossParenAfter = new Map();
+    const captureCrossParenBlock = blk => {
+        const captureCol = col => ({
+            scrollHeight: col.scrollHeight,
+            rectHeight: Math.round(col.getBoundingClientRect().height * 1000) / 1000,
+            paragraphs: Array.from(col.children).filter(p => p.tagName === 'P').map((p, index) => {
+                const r = p.getBoundingClientRect();
+                const cs = getComputedStyle(p);
+                const range = document.createRange();
+                range.selectNodeContents(p);
+                const lineMap = new Map();
+                for (const q of Array.from(range.getClientRects())) {
+                    if (q.width <= 0.1 || q.height <= 0.1) continue;
+                    const key = Math.round(q.top * 2) / 2;
+                    const line = lineMap.get(key) || {
+                        x: q.left, right: q.right, top: q.top, bottom: q.bottom
+                    };
+                    line.x = Math.min(line.x, q.left);
+                    line.right = Math.max(line.right, q.right);
+                    line.top = Math.min(line.top, q.top);
+                    line.bottom = Math.max(line.bottom, q.bottom);
+                    lineMap.set(key, line);
+                }
+                const lineRects = Array.from(lineMap.values())
+                    .sort((a, b) => a.top - b.top || a.x - b.x)
+                    .map(q => [
+                        Math.round(q.x * 1000) / 1000,
+                        Math.round(q.top * 1000) / 1000,
+                        Math.round((q.right - q.x) * 1000) / 1000,
+                        Math.round((q.bottom - q.top) * 1000) / 1000
+                    ]);
+                return {
+                    index,
+                    tokenId: p.getAttribute('data-token-id') || '',
+                    rawTextLength: (p.getAttribute('data-raw-text') || p.textContent || '').length,
+                    height: Math.round(r.height * 1000) / 1000,
+                    y: Math.round(r.y * 1000) / 1000,
+                    lineCount: lineRects.length,
+                    lineRects,
+                    fontSize: cs.fontSize,
+                    lineHeight: cs.lineHeight,
+                    hasParenText: !!p.querySelector('.paren-text')
+                };
+            })
+        });
+        const right = blk.querySelector('.right-col');
+        const left = blk.querySelector('.left-col');
+        return {
+            right: right ? captureCol(right) : null,
+            left: left ? captureCol(left) : null,
+            outerHeight: Math.round(blk.getBoundingClientRect().height * 1000) / 1000
+        };
+    };
+    container.querySelectorAll('.block-2col').forEach(blk => {
+        crossParenBefore.set(blk, captureCrossParenBlock(blk));
+    });
+
+
+===== GOLD (HEAD של Gold) =====
+    if (window.__stepByStepAudit) window.__runAuditCheckpoint('after-initial-layout');

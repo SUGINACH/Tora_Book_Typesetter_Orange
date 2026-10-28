@@ -1,0 +1,69 @@
+{
+ "green_V23_0ddaf89_canonical_text": {
+  "pages": 639,
+  "issues": 40,
+  "high": 0,
+  "medium": 12,
+  "low": 28,
+  "kinds": {
+   "container-gap": 13,
+   "structural-fallback": 6,
+   "imbalance": 9,
+   "sparse-page": 3,
+   "containment-rounding": 6,
+   "square-bracket-scope": 3
+  },
+  "renderMs": 480511
+ },
+ "gold_V21_31ed2ca_greenaudit_aq_on": {
+  "pages": 683,
+  "issues": 558,
+  "high": 114,
+  "medium": 406,
+  "low": 38,
+  "kinds": {
+   "imbalance": 479,
+   "side-note-overflow": 16,
+   "containment": 23,
+   "container-gap": 23,
+   "sparse-line": 6,
+   "sparse-page": 7,
+   "containment-rounding": 1,
+   "square-bracket-scope": 3
+  },
+  "renderMs": 187858
+ },
+ "gold_V21_31ed2ca_greenaudit_aq_off": {
+  "pages": 683,
+  "issues": 775,
+  "high": 148,
+  "medium": 403,
+  "low": 224,
+  "kinds": {
+   "imbalance": 707,
+   "container-gap": 33,
+   "side-note-overflow": 8,
+   "containment": 15,
+   "sparse-page": 8,
+   "containment-rounding": 1,
+   "square-bracket-scope": 3
+  },
+  "renderMs": 165223
+ },
+ "gold_V21_31ed2ca_goldaudit_aq_on": {
+  "pages": 683,
+  "issues": 646,
+  "high": 82,
+  "medium": 518,
+  "low": 46,
+  "kinds": {
+   "imbalance": 472,
+   "containment": 155,
+   "containment-rounding": 2,
+   "widow": 3,
+   "overlap": 6,
+   "page-underfill": 8
+  },
+  "renderMs": 157798
+ }
+}

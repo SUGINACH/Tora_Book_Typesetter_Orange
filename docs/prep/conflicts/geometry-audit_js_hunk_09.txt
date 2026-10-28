@@ -1,0 +1,9 @@
+# geometry-audit.js hunk 9 — שורה 2905, פונקציה מקיפה: auditGeometry
+
+===== GREEN (HEAD של Green) =====
+    auditSquareBracketScopes(issues);
+
+===== GOLD (HEAD של Gold) =====
+    auditPageFillRatio(model, issues); // בדיקת הכלה דלילה של עמוד (page-underfill)
+    auditBlockGaps(model, issues); // [חדש — A2] מרחק גדול בין בלוקים
+    auditSettingsVerification(model, issues); // [חדש — A3] וידוא החלת הגדרות

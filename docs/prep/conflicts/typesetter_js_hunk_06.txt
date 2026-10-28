@@ -1,0 +1,11 @@
+# typesetter.js hunk 6 — שורה 1769, פונקציה מקיפה: justifyColumnVertically
+
+===== GREEN (HEAD של Green) =====
+            if (newLh <= i.lh + 0.01) return;
+
+===== GOLD (HEAD של Gold) =====
+            if (newLh <= i.lh + 0.01) continue;
+            const win = i.p.querySelector('.first-word-window');
+            // במעבר ראשון כמו במקור (offsetHeight); במעברים נוספים נשענים על הגובה המדויק שנקבע קודם, בלי נדידת עיגול
+            const setH = win ? parseFloat(win.style.height) : NaN;
+            const winH = win ? ((pass > 0 && isFinite(setH) && setH > 0) ? setH : win.offsetHeight) : 0;

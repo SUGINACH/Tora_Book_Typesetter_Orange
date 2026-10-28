@@ -1,0 +1,32 @@
+# typesetter.js hunk 7 — שורה 1939, פונקציה מקיפה: stretchLastBlockToBottom
+
+===== GREEN (HEAD של Green) =====
+        const target = Math.min(top + freeSpace, reach);
+        if (target - top < 0.5) return false;
+        justifyColumnVertically(rCol, target, styleObj, maxStretch + 40, JUSTIFY_MAX_LH_EXTRA);
+        justifyColumnVertically(lCol, target, styleObj, maxStretch + 40, JUSTIFY_MAX_LH_EXTRA);
+        if (!stretchFitsOuterBox()) return false;
+
+===== GOLD (HEAD של Gold) =====
+        // [תיקון רגרסיה — מניעת overshoot מעיגול דפדפן]
+        // הדפדפן מעגל כל שורה כלפי מעלה לפיקסל שלם. כשמותחים N שורות ב-0.3px כל אחת, העלייה בפועל יכולה להגיע ל-N פיקסלים.
+        // לכן מפחיתים את היעד ב-2px כדי לתת מרווח בטחון.
+        const target = Math.min(top + freeSpace - 2, reach);
+
+        // [חדש — B1 תיקון] מניעת יצירת imbalance ע"י stretchPageToBottom.
+        // אם הטור הקצר לא יכול להגיע ל-target (reach < target), אז מתיחת הטור הארוך
+        // תיצור imbalance. במקרה זה, נמתח רק עד reach (הגובה ששני הטורים יכולים להגיע אליו),
+        // ולא עד target (הגובה הרצוי שרק הטור הארוך יכול להגיע אליו).
+        // זה מונע את המצב שבו stretchPageToBottom מותח את הטור הארוך ויוצר פער גדול.
+        let effectiveTarget = target;
+        const shortColCap = (rH >= lH) ? columnStretchCapacity(lCol) : columnStretchCapacity(rCol);
+        const shortColBase = Math.min(rH, lH);
+        const shortColReach = shortColBase + shortColCap;
+        if (shortColReach < target - 5) {
+            // הטור הקצר לא יכול להגיע ל-target — נמתח רק עד shortColReach כדי לא ליצור imbalance
+            // (מותח גם את הטור הארוך וגם את הקצר לאותו גובה, מה ששומר על איזון יחסי)
+            effectiveTarget = Math.max(top, shortColReach);
+        }
+        if (effectiveTarget - top < 0.5) return false;
+        justifyColumnVertically(rCol, effectiveTarget, styleObj, maxStretch + 40, JUSTIFY_MAX_LH_EXTRA, false);
+        justifyColumnVertically(lCol, effectiveTarget, styleObj, maxStretch + 40, JUSTIFY_MAX_LH_EXTRA, false);

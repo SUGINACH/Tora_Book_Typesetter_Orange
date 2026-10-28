@@ -1,0 +1,1242 @@
+# geometry-audit.js hunk 8 — שורה 1597, פונקציה מקיפה: findPageIdxInTree
+
+===== GREEN (HEAD של Green) =====
+/* בדיקת תפוסה נמוכה של עמודי תוכן.
+   זו בדיקת אבחון בלבד: היא אינה משנה את העימוד ואינה מסיקה שחוסר איזון הוא תקלה.
+   עמוד סוף פרק מוחרג כאשר העמוד הבא נפתח בכותרת 2; בעמוד תחילת פרק
+   שטח הכותרת והמרווח שמעל הטקסט אינם נחשבים לשטח טקסט חסר. */
+/* בדיקת פער גדול בין סוף תוכן הגוף למכל הבא/גבול אזור הגוף.
+   שכבת אבחון נפרדת מ-sparse-page; אינה משנה פריסה. */
+const CONTAINER_GAP_WARN_PX = 120;
+const CONTAINER_GAP_MEDIUM_PX = 240;
+
+function auditContainerGaps(page, issues) {
+    const pageEl = _nodeToEl && _nodeToEl.get(page);
+    if (!pageEl) return { checked: false, reason: 'missing-page-element' };
+    const pageEls = Array.from(document.querySelectorAll('#book-container .a4-page'));
+    const pageIndex = pageEls.indexOf(pageEl);
+    const bodyFlow = pageEl.querySelector('.page-body-flow');
+    if (!bodyFlow) {
+        // These explicit renderer roles do not carry the body-flow whose terminal
+        // gap this audit measures. Unknown page roles remain uncovered.
+        const pageClass = String(pageEl.className || '');
+        const specialPageRoles = [
+            ['main-shaar-page', 'main-title-page'],
+            ['back-shaar-page', 'back-title-page'],
+            ['sub-shaar-page', 'section-divider-page'],
+            ['blank-page', 'intentional-blank-page']
+        ];
+        const role = specialPageRoles.find(([className]) =>
+            pageEl.classList.contains(className));
+        if (role) {
+            return {
+                checked: true,
+                excluded: 'explicit-special-page-role',
+                specialPageType: role[1],
+                pageClass
+            };
+        }
+        return { checked: false, reason: 'missing-body-flow' };
+    }
+    const flowRect = bodyFlow.getBoundingClientRect();
+    if (!(flowRect.height > 0)) return { checked: false, reason: 'zero-body-flow' };
+
+    const nextPage = pageIndex >= 0 ? pageEls[pageIndex + 1] : null;
+    const nextFlow = nextPage?.querySelector('.page-body-flow');
+    const nextHeading = nextPage?.querySelector('.title-level-2-standalone');
+    const nextFlowRect = nextFlow?.getBoundingClientRect();
+    const nextHeadingRect = nextHeading?.getBoundingClientRect();
+    const nextPageStartsChapter = !!(
+        nextHeadingRect && nextFlowRect && nextFlowRect.height > 0 &&
+        nextHeadingRect.top < nextFlowRect.top + nextFlowRect.height * 0.45
+    );
+    if (nextPageStartsChapter) return { checked: true, excluded: 'chapter-end' };
+    if (pageIndex >= 0 && pageIndex === pageEls.length - 1) {
+        return { checked: true, excluded: 'document-end' };
+    }
+
+    const textSelector = [
+        '.main-column p', '.single-wide-col p',
+        '.main-column .title-level-2-standalone',
+        '.main-column .title-level-3', '.main-column .title-level-4',
+        '.main-column .title-level-5', '.main-column .title-level-6',
+        '.main-column .title-level-7', '.main-column .title-level-custom',
+        '.single-wide-col .title-level-2-standalone',
+        '.single-wide-col .title-level-3', '.single-wide-col .title-level-4',
+        '.single-wide-col .title-level-5', '.single-wide-col .title-level-6',
+        '.single-wide-col .title-level-7', '.single-wide-col .title-level-custom'
+    ].join(',');
+    const textEls = Array.from(new Set(bodyFlow.querySelectorAll(textSelector)));
+    const visibleText = textEls.map(el => ({ el, rect: el.getBoundingClientRect() }))
+        .filter(item =>
+            !item.el.closest('.footnote-area, .margin-notes-column') &&
+            item.rect.width > 0 && item.rect.height > 0 &&
+            item.rect.bottom > flowRect.top &&
+            String(item.el.getAttribute('data-raw-text') || item.el.textContent || '').trim()
+        );
+    if (!visibleText.length) return { checked: true, excluded: 'no-visible-body-text' };
+
+    const last = visibleText.reduce((best, item) =>
+        !best || item.rect.bottom > best.rect.bottom ? item : best, null);
+    const lastTextBottom = last.rect.bottom;
+    const footnoteArea = pageEl.querySelector('.footnote-area');
+    const footnoteRect = footnoteArea?.getBoundingClientRect();
+    const hasVisibleFootnotes = !!(
+        footnoteRect && footnoteRect.width > 0 && footnoteRect.height > 0 &&
+        String(footnoteArea.textContent || '').trim()
+    );
+    const gapToBodyFlowBottomPx = Math.max(0, flowRect.bottom - lastTextBottom);
+    const gapToFootnoteTopPx = hasVisibleFootnotes
+        ? Math.max(0, footnoteRect.top - lastTextBottom)
+        : null;
+    const gapPx = hasVisibleFootnotes ? gapToFootnoteTopPx : gapToBodyFlowBottomPx;
+
+    if (!Number.isFinite(gapPx) || gapPx <= CONTAINER_GAP_WARN_PX) {
+        return { checked: true, gapPx, hasVisibleFootnotes };
+    }
+    const severity = gapPx > CONTAINER_GAP_MEDIUM_PX ? 'medium' : 'low';
+    const roundPx = value => Number.isFinite(value) ? Math.round(value * 100) / 100 : null;
+    const describeElement = (el, rect, originTop = flowRect.top, originLeft = flowRect.left) => el ? ({
+        tag: String(el.tagName || '').toLowerCase(),
+        className: String(el.className || '').toString().trim().slice(0, 180),
+        textLength: String(el.getAttribute?.('data-raw-text') || el.textContent || '').trim().length,
+        leftFromFlowPx: rect ? roundPx(rect.left - originLeft) : null,
+        rightFromFlowPx: rect ? roundPx(rect.right - originLeft) : null,
+        topFromFlowPx: rect ? roundPx(rect.top - originTop) : null,
+        bottomFromFlowPx: rect ? roundPx(rect.bottom - originTop) : null,
+        widthPx: rect ? roundPx(rect.width) : null,
+        heightPx: rect ? roundPx(rect.height) : null
+    }) : null;
+    const computedLayout = el => {
+        if (!el) return null;
+        const style = window.getComputedStyle(el);
+        return {
+            display: style.display,
+            position: style.position,
+            boxSizing: style.boxSizing,
+            width: style.width,
+            height: style.height,
+            minHeight: style.minHeight,
+            maxHeight: style.maxHeight,
+            flex: style.flex,
+            flexDirection: style.flexDirection,
+            gridTemplateColumns: style.gridTemplateColumns,
+            columnCount: style.columnCount,
+            gap: style.gap,
+            marginTop: style.marginTop,
+            marginBottom: style.marginBottom,
+            paddingTop: style.paddingTop,
+            paddingBottom: style.paddingBottom,
+            alignItems: style.alignItems,
+            justifyContent: style.justifyContent,
+            overflow: style.overflow
+        };
+    };
+    const ancestorChain = [];
+    for (let el = last.el, depth = 0; el && el !== bodyFlow && depth < 5; el = el.parentElement, depth++) {
+        const rect = el.getBoundingClientRect();
+        ancestorChain.push({
+            ...describeElement(el, rect),
+            computedLayout: computedLayout(el)
+        });
+    }
+    const directStructure = container => {
+        if (!container) return [];
+        const containerRect = container.getBoundingClientRect();
+        return Array.from(container.children).slice(0, 12).map(el => {
+            const rect = el.getBoundingClientRect();
+            const item = describeElement(el, rect, containerRect.top, containerRect.left);
+            item.computedLayout = computedLayout(el);
+            item.columns = Array.from(el.querySelectorAll('.main-column, .single-wide-col')).slice(0, 4).map(column => {
+                const columnRect = column.getBoundingClientRect();
+                const textNodes = Array.from(column.querySelectorAll('p, .title-level-2-standalone, .title-level-3, .title-level-4, .title-level-5, .title-level-6, .title-level-7, .title-level-custom'))
+                    .map(node => ({ node, rect: node.getBoundingClientRect() }))
+                    .filter(entry => entry.rect.width > 0 && entry.rect.height > 0);
+                const lastNode = textNodes.reduce((best, entry) =>
+                    !best || entry.rect.bottom > best.rect.bottom ? entry : best, null);
+                return {
+                    ...describeElement(column, columnRect, rect.top, rect.left),
+                    computedLayout: computedLayout(column),
+                    visibleTextElementCount: textNodes.length,
+                    lastVisibleTextElement: lastNode ? describeElement(lastNode.node, lastNode.rect, rect.top, rect.left) : null
+                };
+            });
+            return item;
+        });
+    };
+    const nextPageHeading = nextPage?.querySelector('.title-level-2-standalone');
+    const gapContext = {
+        contextSchemaVersion: 2,
+        currentPageClass: String(pageEl.className || '').toString(),
+        bodyFlow: {
+            ...describeElement(bodyFlow, flowRect),
+            computedLayout: computedLayout(bodyFlow)
+        },
+        hasSectionDivider: !!pageEl.querySelector('.sec-divider-wrap'),
+        lastTextElement: describeElement(last.el, last.rect),
+        lastTextComputedLayout: computedLayout(last.el),
+        lastTextAncestorChain: ancestorChain,
+        currentBodyFlowChildren: directStructure(bodyFlow),
+        nextPage: nextPage ? {
+            pageClass: String(nextPage.className || '').toString(),
+            hasBodyFlow: !!nextFlow,
+            startsChapterByCurrentRule: nextPageStartsChapter,
+            heading2Text: nextPageHeading
+                ? String(nextPageHeading.getAttribute('data-raw-text') || nextPageHeading.textContent || '')
+                    .replace(/\s+/g, ' ').trim().slice(0, 160)
+                : null,
+            bodyFlowChildren: directStructure(nextFlow)
+        } : null
+    };
+    issues.push({
+        kind: 'container-gap',
+        severity,
+        pageIdx: page.idx,
+        pageLabel: page.label,
+        gapPx: Math.round(gapPx * 100) / 100,
+        warningThresholdPx: CONTAINER_GAP_WARN_PX,
+        mediumThresholdPx: CONTAINER_GAP_MEDIUM_PX,
+        from: 'last-visible-body-text-bottom',
+        to: hasVisibleFootnotes ? 'footnote-area-top' : 'body-flow-bottom',
+        hasVisibleFootnotes,
+        footnoteAreaHeightPx: hasVisibleFootnotes ? Math.round(footnoteRect.height * 100) / 100 : 0,
+        gapToBodyFlowBottomPx: Math.round(gapToBodyFlowBottomPx * 100) / 100,
+        gapToFootnoteTopPx: gapToFootnoteTopPx === null ? null : Math.round(gapToFootnoteTopPx * 100) / 100,
+        bodyFlowHeightPx: Math.round(flowRect.height * 100) / 100,
+        visibleTextElementCount: visibleText.length,
+        lastTextPreview: String(last.el.getAttribute('data-raw-text') || last.el.textContent || '')
+            .replace(/\s+/g, ' ').trim().slice(-180),
+        gapContext,
+        message: `פער אנכי של ${Math.round(gapPx)}px בין סוף טקסט הגוף ל-${hasVisibleFootnotes ? 'אזור הערות השוליים' : 'תחתית אזור הגוף'} בעמוד ${page.label}`
+    });
+    return { checked: true, gapPx, hasVisibleFootnotes, finding: true };
+}
+
+function auditSparsePage(page, issues) {
+    const pageEl = _nodeToEl && _nodeToEl.get(page);
+    if (!pageEl) return;
+
+    const pageEls = Array.from(document.querySelectorAll('#book-container .a4-page'));
+    const pageIndex = pageEls.indexOf(pageEl);
+    const bodyFlow = pageEl.querySelector('.page-body-flow');
+    if (!bodyFlow) return;
+
+    const flowRect = bodyFlow.getBoundingClientRect();
+    if (!(flowRect.height > 0)) return;
+
+    const heading2Selector = '.title-level-2-standalone';
+    const nextPage = pageIndex >= 0 ? pageEls[pageIndex + 1] : null;
+    const nextHeading2 = nextPage?.querySelector(heading2Selector);
+    const nextFlow = nextPage?.querySelector('.page-body-flow');
+    const nextFlowRect = nextFlow?.getBoundingClientRect();
+    const nextHeadingRect = nextHeading2?.getBoundingClientRect();
+    const nextPageStartsChapter = !!(
+        nextHeadingRect && nextFlowRect && nextFlowRect.height > 0 &&
+        nextHeadingRect.top < nextFlowRect.top + nextFlowRect.height * 0.45
+    );
+
+    // סוף פרק: כותרת 2 בראש העמוד הבא מעידה שהעמוד הנוכחי מסתיים לפני פרק חדש.
+    if (nextPageStartsChapter) return;
+
+    const heading2 = pageEl.querySelector(heading2Selector);
+    const headingRect = heading2?.getBoundingClientRect();
+    const startsChapter = !!(
+        headingRect && headingRect.top < flowRect.top + flowRect.height * 0.45
+    );
+    const contentStartY = startsChapter
+        ? Math.max(flowRect.top, headingRect.bottom)
+        : flowRect.top;
+
+    // המכנה חייב להיות השטח הזמין בעמוד, לא גובה הבלוקים שנוצרו בפועל:
+    // שימוש בגובה הבלוקים היה מנרמל עמוד קצר כאילו כל השטח הזמין נוצל.
+    // עמודי תוכן דו-טוריים נמדדים מול שתי עמודות; עמוד חד-טורי מול אחת.
+    const hasTwoColumnBlock = !!bodyFlow.querySelector('.block-2col');
+    const columnCapacityMultiplier = hasTwoColumnBlock ? 2 : 1;
+    const capacityPx = Math.max(0, flowRect.bottom - contentStartY) * columnCapacityMultiplier;
+    if (!(capacityPx > 0)) return;
+    const referenceColumn = bodyFlow.querySelector('.main-column') || bodyFlow.querySelector('.single-wide-col');
+    const referenceColumnWidth = referenceColumn?.getBoundingClientRect().width || 0;
+
+    const textSelector = [
+        '.main-column p', '.single-wide-col p',
+        '.main-column .title-level-2-standalone',
+        '.main-column .title-level-3', '.main-column .title-level-4',
+        '.main-column .title-level-5', '.main-column .title-level-6',
+        '.main-column .title-level-7', '.main-column .title-level-custom',
+        '.single-wide-col .title-level-2-standalone',
+        '.single-wide-col .title-level-3', '.single-wide-col .title-level-4',
+        '.single-wide-col .title-level-5', '.single-wide-col .title-level-6',
+        '.single-wide-col .title-level-7', '.single-wide-col .title-level-custom'
+    ].join(',');
+    const textEls = Array.from(new Set(bodyFlow.querySelectorAll(textSelector)));
+    let occupiedPx = 0;
+    let paragraphCount = 0;
+    let contentElementCount = 0;
+    let lineCount = 0;
+    let firstTextTop = Infinity;
+    let lastTextBottom = -Infinity;
+    for (const el of textEls) {
+        // הערות שוליים, הערות צד ואלמנטים שאינם נראים אינם חלק מתפוסת גוף הטקסט.
+        if (el.closest('.footnote-area, .margin-notes-column')) continue;
+        const r = el.getBoundingClientRect();
+        if (r.width <= 0 || r.height <= 0 || r.bottom <= contentStartY) continue;
+        const effectiveTop = Math.max(r.top, contentStartY);
+        const effectiveHeight = Math.max(0, r.bottom - effectiveTop);
+        // Convert each element's height to column-equivalent occupancy. A full-width
+        // heading consumes about two column-heights on a two-column page; counting it
+        // as one would systematically understate occupancy on pages with spanning H3s.
+        const widthWeight = referenceColumnWidth > 0
+            ? Math.min(2.5, Math.max(0.5, r.width / referenceColumnWidth))
+            : 1;
+        occupiedPx += effectiveHeight * widthWeight;
+        contentElementCount++;
+        if (el.matches('p')) paragraphCount++;
+        const raw = el.getAttribute('data-raw-text') || el.textContent || '';
+        if (raw.trim()) lineCount += Math.max(1, Math.round(r.height /
+            (parseFloat(getComputedStyle(el).lineHeight) || Math.max(1, r.height))));
+        firstTextTop = Math.min(firstTextTop, effectiveTop);
+        lastTextBottom = Math.max(lastTextBottom, r.bottom);
+    }
+    // Heading-only pages still have content and must be eligible for sparse-page
+    // diagnostics; paragraphCount is retained as a report metric, not a gate.
+    if (contentElementCount === 0 || !Number.isFinite(lastTextBottom)) return;
+
+    // גובהי פסקאות נמדדים בנפרד לכל טור; היחס אינו "אחוז דיו" אלא אומדן
+    // שמרני של תפוסת שטח העימוד. הסף נמוך בכוונה כדי למנוע התרעות שווא.
+    const fillRatio = occupiedPx / capacityPx;
+    const roundedRatio = Math.round(fillRatio * 1000) / 1000;
+    if (fillRatio >= 0.24) return;
+
+    const severity = fillRatio < 0.12 ? 'medium' : 'low';
+    issues.push({
+        kind: 'sparse-page',
+        severity,
+        pageIdx: page.idx,
+        pageLabel: page.label,
+        fillRatio: roundedRatio,
+        occupiedColumnEquivalentPx: Math.round(occupiedPx * 100) / 100,
+        occupancyMethod: 'visible text-element height weighted by element width relative to one column',
+        estimatedCapacityPx: Math.round(capacityPx * 100) / 100,
+        availableBodyHeightPx: Math.round(Math.max(0, flowRect.bottom - contentStartY) * 100) / 100,
+        excludedChapterStartPx: Math.round(Math.max(0, contentStartY - flowRect.top) * 100) / 100,
+        columnCapacityMultiplier,
+        referenceColumnWidthPx: referenceColumnWidth > 0 ? Math.round(referenceColumnWidth * 100) / 100 : null,
+        paragraphCount,
+        contentElementCount,
+        estimatedLineCount: lineCount,
+        startsChapter,
+        firstTextTop: Number.isFinite(firstTextTop) ? Math.round(firstTextTop - flowRect.top) : null,
+        lastTextBottom: Math.round(lastTextBottom - flowRect.top),
+        // Context is diagnostic only: it helps distinguish a legitimate structural
+        // ending from an accidental early page break without changing pagination.
+        firstVisibleTextPreview: (() => {
+            const el = textEls
+                .filter(node => !node.closest('.footnote-area, .margin-notes-column'))
+                .map(node => ({ node, rect: node.getBoundingClientRect() }))
+                .filter(item => item.rect.width > 0 && item.rect.height > 0 && item.rect.bottom > contentStartY)
+                .sort((a, b) => a.rect.top - b.rect.top)[0]?.node;
+            return (el?.getAttribute('data-raw-text') || el?.textContent || '')
+                .replace(/\s+/g, ' ').trim().slice(0, 180) || null;
+        })(),
+        lastVisibleTextPreview: (() => {
+            const el = textEls
+                .filter(node => !node.closest('.footnote-area, .margin-notes-column'))
+                .map(node => ({ node, rect: node.getBoundingClientRect() }))
+                .filter(item => item.rect.width > 0 && item.rect.height > 0 && item.rect.bottom > contentStartY)
+                .sort((a, b) => a.rect.bottom - b.rect.bottom).at(-1)?.node;
+            return (el?.getAttribute('data-raw-text') || el?.textContent || '')
+                .replace(/\s+/g, ' ').trim().slice(-180) || null;
+        })(),
+        textElementClasses: textEls
+            .filter(node => {
+                const rect = node.getBoundingClientRect();
+                return rect.width > 0 && rect.height > 0 && rect.bottom > contentStartY;
+            })
+            .slice(0, 12)
+            .map(node => ({
+                tag: node.tagName.toLowerCase(),
+                className: String(node.className || '').slice(0, 140),
+                column: node.closest('.left-col') ? 'left' :
+                    node.closest('.right-col') ? 'right' :
+                    node.closest('.single-wide-col') ? 'single' : 'unknown'
+            })),
+        flowChildStructure: Array.from(bodyFlow.children).slice(0, 12).map(node => ({
+            tag: node.tagName.toLowerCase(),
+            className: String(node.className || '').slice(0, 140),
+            height: Math.round(node.getBoundingClientRect().height)
+        })),
+        message: `תפוסת טקסט נמוכה בעמוד ${page.label}: ${Math.round(fillRatio * 100)}% מהקיבולת המשוערת${startsChapter ? ' (כותרת תחילת הפרק הוחרגה מהחישוב)' : ''}`
+    });
+}
+
+/* בדיקת טווחי סוגריים מרובעים במקור, לפני שמסתמכים על ה-DOM המעוצב.
+   היא מאתרת סוגריים לא מאוזנים, וכן זוגות שחוצים פסקאות/טורים/עמודים.
+   זוג מקומי באותה פסקה ובאותו טור אינו מדווח כדי למנוע רעש מכל הערת שוליים רגילה. */
+function auditSquareBracketScopes(issues) {
+    const pageEls = Array.from(document.querySelectorAll('#book-container .a4-page'));
+    const paragraphs = [];
+    pageEls.forEach((pageEl, pageIdx) => {
+        const pageLabel = pageEl.querySelector('.page-number-footer')?.textContent?.trim() || String(pageIdx + 1);
+        const ps = Array.from(pageEl.querySelectorAll('.page-body-flow p[data-raw-text]'));
+        ps.forEach((p, localIdx) => {
+            const rawText = p.getAttribute('data-raw-text') || '';
+            if (!rawText) return;
+            const col = p.closest('.main-column, .single-wide-col');
+            const tokenId = p.getAttribute('data-token-id') || null;
+            const fragmentIndex = paragraphs.length;
+            paragraphs.push({
+                el: p, rawText, pageIdx, pageLabel,
+                // DOM fragments are not necessarily source paragraphs: one logical
+                // paragraph may be split into p-cut/p-end fragments across columns/pages.
+                fragmentIndex,
+                tokenId,
+                logicalParagraphId: tokenId !== null ? `token:${tokenId}` : `fragment:${fragmentIndex}`,
+                localParagraphIndex: localIdx,
+                isContinuation: p.getAttribute('data-is-cont') === 'true',
+                column: col?.classList.contains('left-col') ? 'left' :
+                    col?.classList.contains('right-col') ? 'right' :
+                    col?.classList.contains('single-wide-col') ? 'single' : 'unknown'
+            });
+        });
+    });
+
+    // Assign stable logical paragraph ordinals by source token ID. This makes
+    // reports distinguish a true paragraph transition from a continuation fragment.
+    const logicalOrdinals = new Map();
+    let nextLogicalOrdinal = 0;
+    for (const para of paragraphs) {
+        if (!logicalOrdinals.has(para.logicalParagraphId)) {
+            logicalOrdinals.set(para.logicalParagraphId, nextLogicalOrdinal++);
+        }
+        para.logicalParagraphIndex = logicalOrdinals.get(para.logicalParagraphId);
+    }
+
+    const stack = [];
+    const emitUnmatchedClose = (para, offset) => issues.push({
+        kind: 'square-bracket-unmatched',
+        severity: 'high',
+        pageIdx: para.pageIdx,
+        pageLabel: para.pageLabel,
+        paragraphIndex: para.logicalParagraphIndex,
+        fragmentIndex: para.fragmentIndex,
+        tokenId: para.tokenId,
+        offset,
+        bracket: ']',
+        message: `סוגר מרובע סוגר ללא פתיחה תואמת בעמוד ${para.pageLabel}, פסקה מקורית ${para.logicalParagraphIndex + 1}`
+    });
+
+    for (const para of paragraphs) {
+        for (let offset = 0; offset < para.rawText.length; offset++) {
+            const ch = para.rawText[offset];
+            if (ch === '[') {
+                stack.push({ para, offset });
+                continue;
+            }
+            if (ch !== ']') continue;
+            if (!stack.length) {
+                emitUnmatchedClose(para, offset);
+                continue;
+            }
+            const open = stack.pop();
+            const crossedParagraph = open.para.logicalParagraphId !== para.logicalParagraphId;
+            const crossedColumn = open.para.column !== para.column;
+            const crossedPage = open.para.pageIdx !== para.pageIdx;
+            if (!crossedParagraph && !crossedColumn && !crossedPage) continue;
+
+            const boundaries = [];
+            const boundaryLabels = [];
+            if (crossedParagraph) { boundaries.push('paragraph'); boundaryLabels.push('פסקאות'); }
+            if (crossedColumn) { boundaries.push('column'); boundaryLabels.push('טורים'); }
+            if (crossedPage) { boundaries.push('page'); boundaryLabels.push('עמודים'); }
+            const severity = crossedPage || crossedColumn ? 'medium' : 'low';
+            let spanRawChars = 0;
+            for (let fi = open.para.fragmentIndex; fi <= para.fragmentIndex; fi++) {
+                const current = paragraphs[fi];
+                if (!current) continue;
+                const from = fi === open.para.fragmentIndex ? open.offset : 0;
+                const to = fi === para.fragmentIndex ? offset + 1 : current.rawText.length;
+                spanRawChars += Math.max(0, to - from);
+                // Count a separator only when moving between different source paragraphs,
+                // not when the renderer split one source paragraph into multiple fragments.
+                if (fi < para.fragmentIndex &&
+                    current.logicalParagraphId !== paragraphs[fi + 1]?.logicalParagraphId) {
+                    spanRawChars += 1;
+                }
+            }
+            issues.push({
+                kind: 'square-bracket-scope',
+                severity,
+                startPageIdx: open.para.pageIdx,
+                pageIdx: para.pageIdx,
+                startPageLabel: open.para.pageLabel,
+                pageLabel: para.pageLabel,
+                startParagraphIndex: open.para.logicalParagraphIndex,
+                endParagraphIndex: para.logicalParagraphIndex,
+                startFragmentIndex: open.para.fragmentIndex,
+                endFragmentIndex: para.fragmentIndex,
+                startTokenId: open.para.tokenId,
+                endTokenId: para.tokenId,
+                startIsContinuation: open.para.isContinuation,
+                endIsContinuation: para.isContinuation,
+                startColumn: open.para.column,
+                endColumn: para.column,
+                startOffset: open.offset,
+                endOffset: offset,
+                crossedParagraph,
+                crossedColumn,
+                crossedPage,
+                boundaries,
+                spanRawChars,
+                startPreview: open.para.rawText.slice(Math.max(0, open.offset - 55), Math.min(open.para.rawText.length, open.offset + 125)),
+                endPreview: para.rawText.slice(Math.max(0, offset - 90), Math.min(para.rawText.length, offset + 60)),
+                message: `טווח סוגריים מרובעים/הערת שוליים חוצה ${boundaryLabels.join(', ')}: עמוד ${open.para.pageLabel} → ${para.pageLabel}; ${crossedParagraph ? `פסקאות מקור ${open.para.logicalParagraphIndex + 1}–${para.logicalParagraphIndex + 1}` : 'אותה פסקת מקור'}`
+            });
+        }
+    }
+    for (const open of stack) {
+        issues.push({
+            kind: 'square-bracket-unmatched',
+            severity: 'high',
+            pageIdx: open.para.pageIdx,
+            pageLabel: open.para.pageLabel,
+            paragraphIndex: open.para.logicalParagraphIndex,
+            fragmentIndex: open.para.fragmentIndex,
+            tokenId: open.para.tokenId,
+            offset: open.offset,
+            bracket: '[',
+            message: `סוגר מרובע פותח ללא סגירה תואמת בעמוד ${open.para.pageLabel}, פסקה מקורית ${open.para.logicalParagraphIndex + 1}`
+        });
+    }
+
+===== GOLD (HEAD של Gold) =====
+/* [חדש] בדיקת עיטורים — מודדת כל סוגי העיטורים ומאתרת בעיות:
+   - חריגת רוחב (עיטור רחב מהטור)
+   - חפיפה עם טקסט (עיטור חופף כותרת/סימן)
+   - מרחק לא סימטרי (מרחק עליון ≠ תחתון, > 3px הפרש)
+   - עיטור ריק (ללא SVG/img)
+*/
+const ORNAMENT_TYPES = new Set([
+    'h2-orn-top', 'h2-orn-btm',
+    'h2-title-orn-top', 'h2-title-orn-btm',
+    'h2-title-orn-r', 'h2-title-orn-l',
+    'h3-orn-r', 'h3-orn-l',
+    'note-orn-r', 'note-orn-l',
+    'heading-orn', 'sec-div'
+]);
+
+function auditOrnaments(page, issues) {
+    function checkRecursive(node) {
+        if (ORNAMENT_TYPES.has(node.type)) {
+            // 1. בדוק רוחב — עיטור לא צריך לחרוג מרוחב הטור
+            let colParent = node._parent;
+            while (colParent && colParent.type !== 'column' && colParent.type !== 'body-flow' && colParent.type !== 'page') {
+                colParent = colParent._parent;
+            }
+            if (colParent && node.rect.w > colParent.rect.w + 2) {
+                issues.push({
+                    kind: 'ornament-overflow',
+                    severity: 'medium',
+                    pageIdx: page.idx,
+                    location: `page ${page.label}`,
+                    nodeType: node.type,
+                    overflowPx: Math.round(node.rect.w - colParent.rect.w),
+                    message: `עיטור ${node.type} חורג מרוחב הטור: ${Math.round(node.rect.w - colParent.rect.w)}px`
+                });
+            }
+
+            // 2. בדוק חפיפה עם אחים (טקסט/כותרת)
+            if (node._parent) {
+                for (const sibling of node._parent.children) {
+                    if (sibling === node) continue;
+                    if (rOverlaps(node.rect, sibling.rect)) {
+                        // דלג על חפיפה קטנה (1px — עיגול)
+                        const overlap = overlapArea(node.rect, sibling.rect);
+                        if (overlap > 4) {
+                            issues.push({
+                                kind: 'ornament-overlap',
+                                severity: 'medium',
+                                pageIdx: page.idx,
+                                location: `page ${page.label}`,
+                                nodeType: node.type,
+                                siblingType: sibling.type,
+                                overlapPx: Math.round(overlap),
+                                message: `עיטור ${node.type} חופף ${sibling.type}: ${Math.round(overlap)}px`
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. בדוק מרחק סימטרי בין עיטור עליון לתחתון סביב כותרת/סימן
+        if ((node.type === 'h2-title' || node.type === 'h2-siman') && node._parent) {
+            const siblings = node._parent.children;
+            const idx = siblings.indexOf(node);
+            const prev = idx > 0 ? siblings[idx - 1] : null;
+            const next = idx < siblings.length - 1 ? siblings[idx + 1] : null;
+            const prevIsOrn = prev && (prev.type === 'h2-orn-top' || prev.type === 'h2-title-orn-top');
+            const nextIsOrn = next && (next.type === 'h2-orn-btm' || next.type === 'h2-title-orn-btm');
+            if (prevIsOrn && nextIsOrn) {
+                const topGap = node.rect.top - prev.rect.bottom;
+                const btmGap = next.rect.top - node.rect.bottom;
+                const diff = Math.abs(topGap - btmGap);
+                if (diff > 3) {
+                    issues.push({
+                        kind: 'ornament-asymmetry',
+                        severity: 'low',
+                        pageIdx: page.idx,
+                        location: `page ${page.label}`,
+                        nodeType: node.type,
+                        topGap: Math.round(topGap),
+                        btmGap: Math.round(btmGap),
+                        diffPx: Math.round(diff),
+                        message: `מרחק לא סימטרי סביב ${node.type}: עליון=${Math.round(topGap)}px, תחתון=${Math.round(btmGap)}px (הפרש ${Math.round(diff)}px)`
+                    });
+                }
+            }
+        }
+
+        for (const c of node.children) checkRecursive(c);
+    }
+    for (const c of page.children) checkRecursive(c);
+}
+
+function rOverlaps(a, b) {
+    return !(a.right < b.left + 1 || a.left > b.right - 1 || a.bottom < b.top + 1 || a.top > b.bottom - 1);
+}
+
+function overlapArea(a, b) {
+    const xOverlap = Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left));
+    const yOverlap = Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+    return xOverlap * yOverlap;
+}
+
+/* [חדש — בדיקת הכלה דלילה של עמוד]
+   בודקת את יחס המילוי של כל עמוד (כמה משטח ה-body-flow מנוצל).
+   מדלגת על:
+   - עמוד ראשון של פרק (מכיל כותרת + התחלת תוכן)
+   - עמוד אחרון של פרק (מסתיים באמצע העמוד)
+   - עמודים עם הערות שוליים ארוכות (שתופסות מקום לגיטימי)
+
+   סף התראה:
+   - medium: יחס מילוי < 70% (פער גדול מהצפוי)
+   - high: יחס מילוי < 50% (פער חמור מאוד)
+
+   הסף מחושב כ:
+   fillRatio = bodyFlowUsedHeight / bodyFlowAvailableHeight
+   כאשר:
+   - bodyFlowAvailableHeight = גובה ה-page פחות header, footer, footnote-area
+   - bodyFlowUsedHeight = הגובה מתחילת ה-body-flow ועד תחתית הבלוק האחרון בו */
+function auditPageFillRatio(model, issues) {
+    if (!model.pages || model.pages.length === 0) return;
+
+    // מצא את כל העמודים שמתחילים פרק חדש (מכילים h2-title או h2-siman)
+    const chapterStartPageIdxs = new Set();
+    model.pages.forEach((page, idx) => {
+        function hasH2(node) {
+            // [תיקון 5] גם h2-spacer, h2-orn-top/btm, h2-title-orn-* מעידים על תחילת פרק
+            if (node.type === 'h2-title' || node.type === 'h2-siman' ||
+                node.type === 'h2-spacer' || node.type === 'h2-orn-top' ||
+                node.type === 'h2-orn-btm' || node.type === 'h2-title-orn-top' ||
+                node.type === 'h2-title-orn-btm' || node.type === 'h2-title-side' ||
+                node.type === 'h2-title-orn-r' || node.type === 'h2-title-orn-l') return true;
+            return node.children.some(hasH2);
+        }
+        if (page.children.some(c => hasH2(c))) {
+            chapterStartPageIdxs.add(idx);
+        }
+    });
+
+    // [תיקון 0-setup-V21-gold] זהה "עמודים מיוחדים" שאינם עמודי תוכן רגילים של פרק:
+    // - blank-page         — עמוד ריק שנוצר כדי לאפשר לחלק חדש להתחיל בעמוד ימני
+    // - sub-shaar-page     — שער משני לחלק חדש
+    // - main-shaar-page    — שער ראשי (כותרת הספר)
+    // - back-shaar-page    — שער אחורי (כל הזכויות שמורות וכו')
+    // - toc-page           — תוכן עניינים
+    // עמודים אלה אינם נבדקים כ-page-underfill וגם העמוד שלפניהם נחשב כ"סוף פרק/חלק"
+    const specialPageIdxs = new Set();
+    model.pages.forEach((page, idx) => {
+        if (!page.cls || typeof page.cls !== 'string') return;
+        if (page.cls.includes('blank-page') ||
+            page.cls.includes('sub-shaar-page') ||
+            page.cls.includes('main-shaar-page') ||
+            page.cls.includes('back-shaar-page') ||
+            page.cls.includes('toc-page')) {
+            specialPageIdxs.add(idx);
+            // העמוד המיוחד עצמו נחשב גם כ"תחילת פרק" (כדי שלא ייבדק כ-underfill)
+            // וגם כ"סוף פרק" (כדי שהעמוד שלפניו לא ייבדק)
+            chapterStartPageIdxs.add(idx);
+        }
+    });
+
+    // [תיקון 0-setup-V21-gold] זהה עמודים שמכילים sec-div (חוצץ מפריד בין חלקים/פרקים).
+    // עמוד שמסתיים ב-sec-div הוא "סוף פרק/חלק" — גם אם העמוד הבא אינו מתחיל פרק חדש
+    // (למשל: עמוד 6 בפרק 35 מכיל block-2col + sec-divider-wrap, ואחריו יש עמודים 7-8
+    // שהם blank-page/sub-shaar-page לפני תחילת החלק הבא).
+    function hasSecDiv(node) {
+        if (node.type === 'sec-div') return true;
+        return node.children.some(hasSecDiv);
+    }
+
+    // מצא את כל העמודים שמסיימים פרק (העמוד הבא מתחיל פרק חדש, או שזה העמוד האחרון,
+    // או שהעמוד הבא הוא "עמוד מיוחד" כמו blank-page/sub-shaar-page, או שהעמוד עצמו מכיל sec-div)
+    const chapterEndPageIdxs = new Set();
+    model.pages.forEach((page, idx) => {
+        if (idx === model.pages.length - 1) {
+            chapterEndPageIdxs.add(idx);
+        } else if (chapterStartPageIdxs.has(idx + 1)) {
+            chapterEndPageIdxs.add(idx);
+        } else if (specialPageIdxs.has(idx + 1)) {
+            // העמוד הבא הוא מיוחד (blank-page/sub-shaar-page/...) — הנוכחי הוא סוף פרק/חלק
+            chapterEndPageIdxs.add(idx);
+        }
+        // גם אם העמוד עצמו מכיל sec-div, הוא סוף פרק
+        if (page.children.some(c => hasSecDiv(c))) {
+            chapterEndPageIdxs.add(idx);
+        }
+    });
+
+    // עבור כל עמוד שאינו ראשון/אחרון בפרק — בדוק יחס מילוי
+    model.pages.forEach((page, idx) => {
+        if (chapterStartPageIdxs.has(idx)) return; // דלג על תחילת פרק
+        if (chapterEndPageIdxs.has(idx)) return;   // דלג על סוף פרק
+
+        // מצא את ה-wrapper
+        const wrapper = findChild(page, 'wrapper');
+        if (!wrapper) return;
+
+        // מצא את ה-body-flow
+        const bodyFlow = findChild(wrapper, 'body-flow');
+        if (!bodyFlow) return;
+
+        // מצא את ה-footnote-area (אם יש)
+        const fnArea = findChild(wrapper, 'footnote-area');
+
+        // חשב את הגובה הזמין ל-body-flow
+        const pageRect = page.rect;
+        const bodyFlowRect = bodyFlow.rect;
+        const bodyFlowAvailableH = bodyFlowRect.h;
+
+        if (bodyFlowAvailableH <= 0) return;
+
+        // חשב את הגובה בשימוש = מה-top של ה-body-flow עד ה-bottom של הבלוק האחרון
+        let lastBlockBottom = bodyFlowRect.y;
+        function findLastBlockBottom(node) {
+            if (node.type === 'block-2col' || node.type === 'block-single-col' || node.type === 'block-h3-span') {
+                if (node.rect.bottom > lastBlockBottom) {
+                    lastBlockBottom = node.rect.bottom;
+                }
+            }
+            for (const c of node.children) findLastBlockBottom(c);
+        }
+        for (const c of bodyFlow.children) findLastBlockBottom(c);
+
+        const bodyFlowUsedH = lastBlockBottom - bodyFlowRect.y;
+        if (bodyFlowUsedH <= 0) return;
+
+        const fillRatio = bodyFlowUsedH / bodyFlowAvailableH;
+        const wastedPx = bodyFlowAvailableH - bodyFlowUsedH;
+
+        // [תיקון — Finding 4] דווח רק אם הפער משמעותי.
+        // קודם: רק wastedPx >= 100 (מה שגרם לדיווח עמודים עם 88% מילוי כ"דלילים").
+        // עכשיו: דרוש גם wastedPx >= 100 וגם fillRatio < 0.85 (פחות מ-85% מילוי).
+        // עמוד עם 88% מילוי הוא תקין — יש תמיד רווח תחתית טבעי.
+        if (wastedPx < 100 || fillRatio >= 0.85) return;
+
+        let severity = 'low';
+        let kind = 'page-underfill';
+        let note = '';
+
+        if (fillRatio < 0.50) {
+            severity = 'high';
+            note = ' (פער חמור — פחות מ-50% מילוי)';
+        } else if (fillRatio < 0.70) {
+            severity = 'medium';
+            note = ' (פער משמעותי — פחות מ-70% מילוי)';
+        } else {
+            severity = 'low';
+            note = ' (פער קל — פחות מ-85% מילוי)';
+        }
+
+        issues.push({
+            kind: kind,
+            severity: severity,
+            pageIdx: page.idx,
+            location: `page ${page.label}`,
+            fillRatio: Math.round(fillRatio * 100),
+            availableH: Math.round(bodyFlowAvailableH),
+            usedH: Math.round(bodyFlowUsedH),
+            wastedPx: Math.round(wastedPx),
+            note: note.trim(),
+            message: `עמוד דליל: ${Math.round(fillRatio * 100)}% מילוי (${Math.round(wastedPx)}px ריקים מתוך ${Math.round(bodyFlowAvailableH)}px)${note}`
+        });
+    });
+}
+
+/* [חדש — A2] בדיקת מרחק גדול בין בלוקים (block-gap) — ההפך מ-containment.
+   בודק מרחק בין בלוקים עוקבים ב-body-flow. מרחק גדול מצביע על:
+   - page-underfill חלקי (ה-engine לא מילא את העמוד)
+   - רווח מופרז בין בלוקים (לא נראה טבעי)
+   - עמוד דליל עם הערות שוליים (ה-fnArea תופס מקום אבל הטקסט דליל)
+   חריגים: sec-divider (מפריד מכוון), h2-spacer (רווח כותרת). */
+function auditBlockGaps(model, issues) {
+    if (!model.pages) return;
+    const BLOCK_TYPES = new Set(['block-2col', 'block-single-col', 'block-h3-span']);
+    const SKIP_TYPES = new Set(['sec-div', 'h2-spacer', 'fn-header', 'fn-rule']);
+
+    model.pages.forEach((page, idx) => {
+        // דלג על עמודים מיוחדים
+        if (page.cls && typeof page.cls === 'string' &&
+            (page.cls.includes('blank-page') || page.cls.includes('sub-shaar-page') ||
+             page.cls.includes('main-shaar-page') || page.cls.includes('back-shaar-page') ||
+             page.cls.includes('toc-page'))) return;
+
+        const wrapper = findChild(page, 'wrapper');
+        if (!wrapper) return;
+        const bodyFlow = findChild(wrapper, 'body-flow');
+        if (!bodyFlow) return;
+
+        // אסוף בלוקים ישירים של body-flow
+        const blocks = [];
+        for (const child of bodyFlow.children) {
+            if (BLOCK_TYPES.has(child.type) || SKIP_TYPES.has(child.type)) {
+                blocks.push(child);
+            }
+        }
+        if (blocks.length < 2) return;
+
+        // בדוק מרחק בין כל זוג בלוקים עוקבים
+        for (let i = 1; i < blocks.length; i++) {
+            const prev = blocks[i - 1];
+            const curr = blocks[i];
+
+            // דלג אם אחד מהם הוא sec-div או h2-spacer (מרווח מכוון)
+            if (SKIP_TYPES.has(prev.type) || SKIP_TYPES.has(curr.type)) continue;
+
+            const gap = Math.round(curr.rect.y - prev.rect.bottom);
+            if (gap > 50) {
+                let severity = 'low';
+                let note = '';
+                if (gap > 150) {
+                    severity = 'medium';
+                    note = ' (מרחק גדול מאוד בין בלוקים)';
+                } else if (gap > 80) {
+                    severity = 'low';
+                    note = ' (מרחק גדול בין בלוקים)';
+                }
+                issues.push({
+                    kind: 'block-gap',
+                    severity: severity,
+                    pageIdx: page.idx,
+                    location: `page ${page.label}`,
+                    gapPx: gap,
+                    prevType: prev.type,
+                    currType: curr.type,
+                    note: note.trim(),
+                    message: `מרחק ${gap}px בין ${prev.type} ל-${curr.type}${note}`
+                });
+            }
+        }
+    });
+}
+
+/* [חדש — A3] וידוא החלת הגדרות (settings-verification) — בדיקה גיאוממטרית
+   שהגדרות המשתמש הוחלו בפועל ב-DOM המרונדר.
+   מטרה: לייתר וידוא חזותי — אם הגדרה לא הוחלה, הבדיקה תזהה זאת.
+   בודק: last-line centered, drop-word, ornaments, side-notes, sec-div,
+   note-markers, h2-siman, page-numbers, fn-area, margin-col, col-gutter. */
+function auditSettingsVerification(model, issues) {
+    if (!model.pages || model.pages.length === 0) return;
+
+    // קרא הגדרות מה-DOM (ה-iframe מכיל hidden inputs עם ההגדרות)
+    const getSetting = (id) => {
+        const el = document.getElementById(id);
+        if (!el) return null;
+        if (el.type === 'checkbox') return el.checked;
+        return el.value;
+    };
+
+    const bodyLastLineAlign = getSetting('body-last-line-align');
+    const dropWordMode = getSetting('drop-word-mode');
+    const h2OrnTopStyle = getSetting('h2-ornament-top-style');
+    const h2OrnBtmStyle = getSetting('h2-ornament-bottom-style');
+    const showSideNotes = getSetting('show-side-notes') !== false; // default true
+    const secDivStyle = getSetting('section-divider-style');
+    const autoSimanH2 = getSetting('h2-auto-siman');
+    const colDividerStyle = getSetting('col-divider-style');
+    const fontBody = getSetting('font-body');
+    const lineHeightBody = getSetting('line-height-body');
+    const aqHeadingSpacing = getSetting('aq-heading-spacing');
+    const aqLetterSpacing = getSetting('aq-letter-spacing');
+    const aqPageHeight = getSetting('aq-page-height');
+
+    // אסוף סטטיסטיקות מהמודל
+    let pEndCount = 0, pCutCount = 0;
+    let dropWordCount = 0;
+    let h2OrnTopCount = 0, h2OrnBtmCount = 0;
+    let sideNoteCount = 0;
+    let secDivCount = 0;
+    let h2SimanCount = 0;
+    let pageNumberCount = 0;
+    let fnAreaCount = 0;
+    let marginColCount = 0;
+    let gutterCount = 0;
+
+    function collectStats(node) {
+        switch (node.type) {
+            case 'p-end': pEndCount++; break;
+            case 'p-cut': pCutCount++; break;
+            case 'drop-word': dropWordCount++; break;
+            case 'h2-orn-top': h2OrnTopCount++; break;
+            case 'h2-orn-btm': h2OrnBtmCount++; break;
+            case 'side-note': sideNoteCount++; break;
+            case 'sec-div': secDivCount++; break;
+            case 'h2-siman': h2SimanCount++; break;
+            case 'page-number': pageNumberCount++; break;
+            case 'footnote-area': fnAreaCount++; break;
+            case 'margin-col': marginColCount++; break;
+            case 'gutter': gutterCount++; break;
+        }
+        for (const c of (node.children || [])) collectStats(c);
+    }
+    for (const page of model.pages) {
+        for (const c of page.children) collectStats(c);
+    }
+
+    const totalPages = model.pages.length;
+
+    // בדיקה 1: שורה אחרונה ממורכזת
+    // אם ההגדרה היא 'center', בדוק שיש p-end (שורות אחרונות ממורכזות)
+    if (bodyLastLineAlign === 'center' || bodyLastLineAlign === 'centered' || bodyLastLineAlign === true) {
+        if (pEndCount === 0 && pCutCount > 0) {
+            issues.push({
+                kind: 'settings-verification',
+                severity: 'medium',
+                pageIdx: -1,
+                location: 'global',
+                setting: 'body-last-line-align',
+                expected: 'center',
+                actual: 'no p-end found',
+                note: ' (הגדרת שורה אחרונה ממורכזת פעילה אך לא נמצאו פסקאות p-end)',
+                message: 'הגדרת שורה אחרונה ממורכזת פעילה אך לא נמצאו פסקאות p-end — ייתכן שלא הוחלה'
+            });
+        }
+    }
+
+    // בדיקה 2: drop-word (חלון תיבה ראשונה)
+    if (dropWordMode && dropWordMode !== 'none' && dropWordMode !== '' && dropWordMode !== 'off') {
+        if (dropWordCount === 0 && (pEndCount + pCutCount) > 5) {
+            issues.push({
+                kind: 'settings-verification',
+                severity: 'medium',
+                pageIdx: -1,
+                location: 'global',
+                setting: 'drop-word-mode',
+                expected: dropWordMode,
+                actual: 'no drop-word found',
+                note: ' (חלון תיבה ראשונה פעיל אך לא נמצא drop-word ב-DOM)',
+                message: `חלון תיבה ראשונה (mode=${dropWordMode}) פעיל אך לא נמצא drop-word — ייתכן שלא הוחל`
+            });
+        }
+    }
+
+    // בדיקה 3: עיטורי כותרת עליונים
+    if (h2OrnTopStyle && h2OrnTopStyle !== 'none' && h2OrnTopStyle !== '') {
+        if (h2OrnTopCount === 0) {
+            issues.push({
+                kind: 'settings-verification',
+                severity: 'low',
+                pageIdx: -1,
+                location: 'global',
+                setting: 'h2-ornament-top-style',
+                expected: h2OrnTopStyle,
+                actual: 'no h2-ornament-top found',
+                note: ' (עיטור כותרת עליון פעיל אך לא נמצא ב-DOM)',
+                message: `עיטור כותרת עליון (style=${h2OrnTopStyle}) פעיל אך לא נמצא — ייתכן שלא הוחל`
+            });
+        }
+    }
+
+    // בדיקה 4: עיטורי כותרת תחתונים
+    if (h2OrnBtmStyle && h2OrnBtmStyle !== 'none' && h2OrnBtmStyle !== '') {
+        if (h2OrnBtmCount === 0) {
+            issues.push({
+                kind: 'settings-verification',
+                severity: 'low',
+                pageIdx: -1,
+                location: 'global',
+                setting: 'h2-ornament-bottom-style',
+                expected: h2OrnBtmStyle,
+                actual: 'no h2-ornament-bottom found',
+                note: ' (עיטור כותרת תחתון פעיל אך לא נמצא ב-DOM)',
+                message: `עיטור כותרת תחתון (style=${h2OrnBtmStyle}) פעיל אך לא נמצא — ייתכן שלא הוחל`
+            });
+        }
+    }
+
+    // בדיקה 5: הערות צד (side-notes)
+    if (showSideNotes && marginColCount === 0) {
+        issues.push({
+            kind: 'settings-verification',
+            severity: 'low',
+            pageIdx: -1,
+            location: 'global',
+            setting: 'show-side-notes',
+            expected: 'true',
+            actual: 'no margin-col found',
+            note: ' (הערות צד פעילות אך לא נמצאו עמודות שוליים)',
+            message: 'הערות צד פעילות אך לא נמצאו margin-col — ייתכן שלא הוחל (או שאין H7 בטקסט)'
+        });
+    }
+
+    // בדיקה 6: מפריד סעיפים
+    // הערה: כשבודקים פרקים בודדים (לא מסמך מלא), ייתכן שאין sec-div
+    // כי הוא מופיע רק בסוף חלק/פרק שלם. לכן נדווח רק אם יש יותר מ-3 עמודים
+    // (מה שמצביע על מסמך מלא ולא פרק בודד).
+    if (secDivStyle && secDivStyle !== 'none' && secDivStyle !== '' && totalPages > 3) {
+        if (secDivCount === 0) {
+            issues.push({
+                kind: 'settings-verification',
+                severity: 'low',
+                pageIdx: -1,
+                location: 'global',
+                setting: 'section-divider-style',
+                expected: secDivStyle,
+                actual: 'no sec-div found',
+                note: ' (מפריד סעיפים פעיל אך לא נמצא ב-DOM)',
+                message: `מפריד סעיפים (style=${secDivStyle}) פעיל אך לא נמצא — ייתכן שלא הוחל`
+            });
+        }
+    }
+
+    // בדיקה 7: סמן אוטומטי
+    if (autoSimanH2 === true || autoSimanH2 === 'true') {
+        if (h2SimanCount === 0) {
+            issues.push({
+                kind: 'settings-verification',
+                severity: 'low',
+                pageIdx: -1,
+                location: 'global',
+                setting: 'h2-auto-siman',
+                expected: 'true',
+                actual: 'no h2-siman found',
+                note: ' (סמן אוטומטי פעיל אך לא נמצא h2-siman-badge)',
+                message: 'סמן אוטומטי פעיל אך לא נמצא h2-siman — ייתכן שלא הוחל'
+            });
+        }
+    }
+
+    // בדיקה 8: מספור עמודים
+    if (pageNumberCount === 0 && totalPages > 3) {
+        issues.push({
+            kind: 'settings-verification',
+            severity: 'medium',
+            pageIdx: -1,
+            location: 'global',
+            setting: 'page-num-position',
+            expected: 'page numbers on pages',
+            actual: 'no page-number found',
+            note: ' (לא נמצאו מספרי עמודים באף עמוד)',
+            message: 'לא נמצאו מספרי עמודים (page-number-footer) — ייתכן שמספור כבוי'
+        });
+    }
+
+    // בדיקה 9: קו מפריד טורים
+    if (colDividerStyle && colDividerStyle !== 'none' && colDividerStyle !== '') {
+        if (gutterCount === 0) {
+            issues.push({
+                kind: 'settings-verification',
+                severity: 'low',
+                pageIdx: -1,
+                location: 'global',
+                setting: 'col-divider-style',
+                expected: colDividerStyle,
+                actual: 'no gutter found',
+                note: ' (קו מפריד טורים פעיל אך לא נמצא col-gutter-divider)',
+                message: `קו מפריד טורים (style=${colDividerStyle}) פעיל אך לא נמצא — ייתכן שלא הוחל`
+            });
+        }
+    }
+
+    // בדיקה 10: heading-spacing (שלב 4) — ודא שהופעל על כותרות
+    if (aqHeadingSpacing === true || aqHeadingSpacing === 'true') {
+        // בדוק שיש לפחות כותרת אחת עם margin-top/mb שאינו ברירת המחדל
+        let headingWithCustomMargin = 0;
+        function checkHeadingMargins(node) {
+            if (node.type === 'h4' || node.type === 'h5' || node.type === 'h6') {
+                // אם יש data-base-mt, סימן ש-heading-spacing פעל
+                // אבל אנחנו לא יכולים לבדוק data attributes מהמודל — נדלג
+            }
+            for (const c of (node.children || [])) checkHeadingMargins(c);
+        }
+        // דלוג — לא ניתן לבדוק מהמודל הגיאוממטרי
+    }
+
+    // בדיקה 11: aq-page-height — ודא שלא נוצר page-overflow חדש
+    if (aqPageHeight === true || aqPageHeight === 'true') {
+        // אם page-height מופעל, בדוק שאין page-overflow חדש
+        // זה כבר נבדק על-ידי auditPageOverflow — לא צריך בדיקה נוספת
+    }
+
+    // [חדש — A3 השלמה] בדיקות 12-16: font-body, line-height, heading first-child, shaar pages, TOC pages
+
+    // בדיקה 12: font-body — השוואה בין font-family של p בפועל להגדרה
+    if (fontBody && totalPages > 0) {
+        try {
+            const firstPage = model.pages[0];
+            const wrapper = firstPage.children[0];
+            const firstP = findDescendantByType(wrapper, 'p-end') || findDescendantByType(wrapper, 'p-cut');
+            if (firstP) {
+                const el = _nodeToEl.get(firstP);
+                if (el) {
+                    const actualFont = getComputedStyle(el).fontFamily;
+                    // השוואה גסה: אם ההגדרה היא 'Foo Bar' וה-actual מכיל 'Foo' או 'Bar'
+                    const expectedParts = fontBody.split(/[\s,']+|"/).filter(s => s.length > 2);
+                    const matchesSome = expectedParts.some(part => actualFont.includes(part));
+                    if (!matchesSome && expectedParts.length > 0) {
+                        issues.push({
+                            kind: 'settings-verification',
+                            severity: 'low',
+                            pageIdx: 0,
+                            location: 'global',
+                            setting: 'font-body',
+                            expected: fontBody,
+                            actual: actualFont,
+                            note: ' (הגדרת font-body אינה תואמת ל-computed font-family של p)',
+                            message: `font-body=${fontBody} אינו תואם ל-actual=${actualFont.slice(0,50)} — ייתכן שלא הוחל או שהגופן לא נטען`
+                        });
+                    }
+                }
+            }
+        } catch (e) { /* ignore — בדיקה רכה */ }
+    }
+
+    // בדיקה 13: line-height-body — השוואה בין line-height של p בפועל להגדרה
+    if (lineHeightBody && totalPages > 0) {
+        try {
+            const firstPage = model.pages[0];
+            const wrapper = firstPage.children[0];
+            const firstP = findDescendantByType(wrapper, 'p-end') || findDescendantByType(wrapper, 'p-cut');
+            if (firstP) {
+                const el = _nodeToEl.get(firstP);
+                if (el) {
+                    const actualLH = parseFloat(getComputedStyle(el).lineHeight) || 0;
+                    const fontSize = parseFloat(getComputedStyle(el).fontSize) || 16;
+                    const actualRatio = actualLH / fontSize;
+                    const expectedRatio = parseFloat(lineHeightBody);
+                    // סטייה של יותר מ-10% נחשבת כאי-התאמה
+                    if (expectedRatio > 0 && Math.abs(actualRatio - expectedRatio) / expectedRatio > 0.1) {
+                        issues.push({
+                            kind: 'settings-verification',
+                            severity: 'low',
+                            pageIdx: 0,
+                            location: 'global',
+                            setting: 'line-height-body',
+                            expected: String(expectedRatio),
+                            actual: actualRatio.toFixed(3),
+                            note: ' (line-height של p בפועל אינו תואם להגדרה, סטייה > 10%)',
+                            message: `line-height-body=${expectedRatio} אינו תואם ל-actual=${actualRatio.toFixed(3)} — ייתכן שלא הוחל`
+                        });
+                    }
+                }
+            }
+        } catch (e) { /* ignore */ }
+    }
+
+    // בדיקה 14: כותרות first-child — margin-top:0
+    {
+        let headingsChecked = 0, headingsWithWrongMargin = 0;
+        function checkHeadingFirstChildMargin(node) {
+            if (node.type === 'h4' || node.type === 'h5' || node.type === 'h6') {
+                const el = _nodeToEl.get(node);
+                if (el) {
+                    const parent = el.parentElement;
+                    if (parent && parent.firstElementChild === el) {
+                        headingsChecked++;
+                        const mt = parseFloat(getComputedStyle(el).marginTop) || 0;
+                        if (mt > 1) headingsWithWrongMargin++;
+                    }
+                }
+            }
+            for (const c of (node.children || [])) checkHeadingFirstChildMargin(c);
+        }
+        for (const page of model.pages) {
+            for (const c of page.children) checkHeadingFirstChildMargin(c);
+        }
+        if (headingsChecked > 0 && headingsWithWrongMargin === headingsChecked) {
+            issues.push({
+                kind: 'settings-verification',
+                severity: 'low',
+                pageIdx: -1,
+                location: 'global',
+                setting: 'heading-first-child-margin-top',
+                expected: '0',
+                actual: `>0 on all ${headingsChecked} first-child headings`,
+                note: ' (כותרות first-child בטור צריכות margin-top:0)',
+                message: `כל ${headingsChecked} כותרות first-child בטור עם margin-top שגוי — ייתכן שה-CSS של first-child לא הוחל`
+            });
+        }
+    }
+
+    // בדיקה 15: shaar pages + TOC pages
+    // [תיקון] בדיקות shaar ו-TOC רלוונטיות רק במסמך מלא, לא בריצת פרק בודד.
+    // אינדיקציה: בריצת פרק בודד, העמוד הראשון הוא h2Open (כותרת הפרק), לא main-shaar-page.
+    const showMainShaar = getSetting('show-main-shaar');
+    const showBackShaar = getSetting('show-back-shaar');
+    const showSubShaar = getSetting('show-sub-shaar');
+    let mainShaarCount = 0, backShaarCount = 0, subShaarCount = 0, tocPageCount = 0;
+    for (const page of model.pages) {
+        if (!page.cls) continue;
+        if (page.cls.includes('main-shaar-page')) mainShaarCount++;
+        if (page.cls.includes('back-shaar-page')) backShaarCount++;
+        if (page.cls.includes('sub-shaar-page')) subShaarCount++;
+        if (page.cls.includes('toc-page')) tocPageCount++;
+    }
+    // [תיקון] בדוק אם העמוד הראשון הוא main-shaar-page (מסמך מלא) או לא (פרק בודד)
+    const firstPageCls = (model.pages[0] && model.pages[0].cls) || '';
+    const isFullDocument = firstPageCls.includes('main-shaar-page') ||
+                          mainShaarCount > 0 || backShaarCount > 0 || subShaarCount > 0 || tocPageCount > 0;
+    // דלוג אם פרק בודד או מסמך קצר (shaar ו-toc קיימים רק במסמך מלא)
+    if (totalPages > 10 && isFullDocument) {
+        if ((showMainShaar === true || showMainShaar === 'true') && mainShaarCount === 0) {
+            issues.push({
+                kind: 'settings-verification',
+                severity: 'medium',
+                pageIdx: -1, location: 'global',
+                setting: 'show-main-shaar', expected: 'main-shaar-page', actual: 'not found',
+                note: ' (show-main-shaar פעיל אך לא נמצא main-shaar-page)',
+                message: 'show-main-shaar פעיל אך לא נמצא עמוד שער ראשי — ייתכן שלא הוחל'
+            });
+        }
+        if ((showBackShaar === true || showBackShaar === 'true') && backShaarCount === 0) {
+            issues.push({
+                kind: 'settings-verification',
+                severity: 'medium',
+                pageIdx: -1, location: 'global',
+                setting: 'show-back-shaar', expected: 'back-shaar-page', actual: 'not found',
+                note: ' (show-back-shaar פעיל אך לא נמצא back-shaar-page)',
+                message: 'show-back-shaar פעיל אך לא נמצא עמוד שער אחורי — ייתכן שלא הוחל'
+            });
+        }
+        if ((showSubShaar === true || showSubShaar === 'true') && subShaarCount === 0) {
+            issues.push({
+                kind: 'settings-verification',
+                severity: 'low',
+                pageIdx: -1, location: 'global',
+                setting: 'show-sub-shaar', expected: 'sub-shaar-page', actual: 'not found',
+                note: ' (show-sub-shaar פעיל אך לא נמצא sub-shaar-page)',
+                message: 'show-sub-shaar פעיל אך לא נמצא עמוד שער משנה — ייתכן שלא הוחל או שאין חלוקת משנה'
+            });
+        }
+        // בדיקה 16: TOC pages
+        if (tocPageCount === 0) {
+            issues.push({
+                kind: 'settings-verification',
+                severity: 'low',
+                pageIdx: -1, location: 'global',
+                setting: 'toc-pages', expected: 'toc-page', actual: 'not found',
+                note: ' (לא נמצאו עמודי תוכן עניינים)',
+                message: 'לא נמצאו עמודי תוכן עניינים (toc-page) — ייתכן ש-TOC כבוי או לא הוחל'
+            });
+        }
+    }

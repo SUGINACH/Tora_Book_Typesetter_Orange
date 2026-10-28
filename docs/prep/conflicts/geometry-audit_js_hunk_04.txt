@@ -1,0 +1,40 @@
+# geometry-audit.js hunk 4 — שורה 1177, פונקציה מקיפה: auditColumnBalance
+
+===== GREEN (HEAD של Green) =====
+                    balanceOutcome: classifiedOutcome,
+                    acceptedResidualLimitPx,
+                    balanceDiagnosis,
+                    emptyColumnSide: isCompletelyEmpty ? emptySide : null,
+                    missingColumnSide: missingSide,
+                    columnGeometrySource: {
+                        right: right.source,
+                        left: left.source
+                    },
+                    columnElementPresent: {
+                        right: right.elementPresent,
+                        left: left.elementPresent
+                    },
+                    injectedEmptyColumnTest: blockEl?.getAttribute('data-geometry-audit-test-empty-column') === 'true',
+                    injectedMissingColumnTest: blockEl?.getAttribute('data-geometry-audit-test-missing-column') === 'true',
+                    rightRect: roundRect(right.rect),
+                    leftRect: roundRect(left.rect),
+                    contentContext,
+                    layoutMetrics: metrics ? {
+                        globalJustifyDiagnostic: metrics.globalJustifyDiagnostic || null,
+                        pageFinalJustifyDiagnostic: metrics.pageFinalJustifyDiagnostic || null,
+                        balanceStatus: metrics.balanceStatus || null,
+                        balanceSkipReason: metrics.balanceSkipReason || null,
+                        balanceDiff: metrics.balanceDiff || null,
+                        decisionRecord: decision,
+                        stageGeometryDiagnostic: metrics.stageGeometryDiagnostic || null
+                    } : null,
+                    message: hasMissingColumnElement
+                        ? `כשל מבני חמור: רכיב הטור ${missingSide === 'right' ? 'הימני' : 'השמאלי'} חסר ב-DOM; לא ניתן לקבוע שהוא טור קיים וריק. גובה גיאומטרי חלופי=0px; הטור השני בגובה ${Math.round(missingSide === 'right' ? leftHeight : rightHeight)}px; פער=${Math.round(diff)}px`
+                        : (isCompletelyEmpty
+                            ? `אי-איזון חמור: הטור ${emptySide === 'right' ? 'הימני' : 'השמאלי'} קיים אך ריק לחלוטין (גובה ${Math.round(emptyHeight)}px); הטור השני בגובה ${Math.round(emptySide === 'right' ? leftHeight : rightHeight)}px; פער=${Math.round(diff)}px`
+                            : `אי-איזון טורים: ימין=${Math.round(rightHeight)}px שמאל=${Math.round(leftHeight)}px פער=${Math.round(diff)}px [${balanceOutcome}]`)
+
+===== GOLD (HEAD של Gold) =====
+                    rightRect: { x: Math.round(right.rect.x), y: Math.round(right.rect.y), w: Math.round(right.rect.w), h: Math.round(right.rect.h) },
+                    leftRect: { x: Math.round(left.rect.x), y: Math.round(left.rect.y), w: Math.round(left.rect.w), h: Math.round(left.rect.h) },
+                    message: `אי-איזון טורים: ימין=${Math.round(right.rect.h)}px שמאל=${Math.round(left.rect.h)}px פער=${Math.round(diff)}px${hasPCut ? ' (block-2col עם p-cut cross-page)' : ''}`

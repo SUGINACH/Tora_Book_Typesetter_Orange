@@ -1,0 +1,9 @@
+# typesetter.js hunk 1 — שורה 642, פונקציה מקיפה: buildHeaderGridHTML
+
+===== GREEN (HEAD של Green) =====
+    const isAlternating = !isSplitTitle && !isDistinctEvenOdd && document.getElementById('hdr-alternating')?.checked;
+
+===== GOLD (HEAD של Gold) =====
+    const isDistinct = !!document.getElementById('hdr-distinct-even-odd')?.checked;
+    // [תיקון] כותרות מתחלפות (alternating) לא פועלות יחד עם הפרדה (distinct) — הן סותרות.
+    const isAlternating = !isSplitTitle && !isDistinct && !!document.getElementById('hdr-alternating')?.checked;

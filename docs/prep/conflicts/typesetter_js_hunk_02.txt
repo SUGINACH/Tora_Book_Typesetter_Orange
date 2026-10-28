@@ -1,0 +1,44 @@
+# typesetter.js hunk 2 — שורה 666, פונקציה מקיפה: buildHeaderGridHTML
+
+===== GREEN (HEAD של Green) =====
+    let hdrRFont = document.getElementById('f-hdr-r')?.value || "'Livorna','David Libre',serif";
+    let hdrCFont = document.getElementById('f-hdr-c')?.value || 'serif';
+    let hdrLFont = document.getElementById('f-hdr-l')?.value || "'Livorna','David Libre',serif";
+    let hdrRSize = (document.getElementById('s-hdr-r')?.value || 13) + 'pt';
+    let hdrCSize = (document.getElementById('s-hdr-c')?.value || 11) + 'pt';
+    let hdrLSize = (document.getElementById('s-hdr-l')?.value || 13) + 'pt';
+
+    let cR = customR, cC = customC, cL = customL;
+    if (isVerso) {
+        const resolveVersoType = (side, oddType) => {
+            const selected = document.getElementById('hdr-verso-' + side + '-type')?.value || 'same_as_odd';
+            return { selected, resolved: selected === 'same_as_odd' ? oddType : selected };
+        };
+        const versoR = resolveVersoType('r', hdrRType);
+        const versoC = resolveVersoType('c', hdrCType);
+        const versoL = resolveVersoType('l', hdrLType);
+        hdrRType = versoR.resolved; hdrCType = versoC.resolved; hdrLType = versoL.resolved;
+        hdrRAlign = document.getElementById('hdr-verso-r-align')?.value || hdrRAlign;
+        hdrCAlign = document.getElementById('hdr-verso-c-align')?.value || hdrCAlign;
+        hdrLAlign = document.getElementById('hdr-verso-l-align')?.value || hdrLAlign;
+        hdrRFont = document.getElementById('f-hdr-verso-r')?.value || hdrRFont;
+        hdrCFont = document.getElementById('f-hdr-verso-c')?.value || hdrCFont;
+        hdrLFont = document.getElementById('f-hdr-verso-l')?.value || hdrLFont;
+        hdrRSize = (document.getElementById('s-hdr-verso-r')?.value || parseFloat(hdrRSize) || 13) + 'pt';
+        hdrCSize = (document.getElementById('s-hdr-verso-c')?.value || parseFloat(hdrCSize) || 11) + 'pt';
+        hdrLSize = (document.getElementById('s-hdr-verso-l')?.value || parseFloat(hdrLSize) || 13) + 'pt';
+        if (versoR.selected === 'custom') cR = document.getElementById('hdr-verso-r-custom')?.value || '';
+        if (versoC.selected === 'custom') cC = document.getElementById('hdr-verso-c-custom')?.value || '';
+        if (versoL.selected === 'custom') cL = document.getElementById('hdr-verso-l-custom')?.value || '';
+    }
+
+===== GOLD (HEAD של Gold) =====
+    let hdrRFont = rSet.font || "'Livorna','David Libre',serif";
+    let hdrRSize = (rSet.size || 13) + 'pt';
+    let hdrLFont = lSet.font || "'Livorna','David Libre',serif";
+    let hdrLSize = (lSet.size || 13) + 'pt';
+
+    let cR = rSet.custom || customR;
+    let cL = lSet.custom || customL;
+    // [תיקון] גם customC צריך להיקרא מ-verso כש-useVerso
+    const cCustom = cSet.custom || customC;

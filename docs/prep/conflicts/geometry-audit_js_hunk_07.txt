@@ -1,0 +1,31 @@
+# geometry-audit.js hunk 7 — שורה 1335, פונקציה מקיפה: auditSparseLastLine
+
+===== GREEN (HEAD של Green) =====
+            if (!hasParenOnLastLine) {
+                const balanceBlock = _nodeToEl.get(node)?.closest('.block-2col') || null;
+                const balanceFallback = balanceBlock?.getAttribute('data-layout-balance-fallback') || null;
+                const balanceFallbackSparseLine = balanceBlock?.getAttribute('data-layout-balance-fallback-sparse-line') || null;
+                const lineTokens = line => (Array.isArray(node.words) ? node.words : [])
+                    .filter(token => Math.abs(token.y - line.y) < Math.max(4, line.h * 0.35))
+                    .sort((a, b) => a.idx - b.idx)
+                    .map(token => ({
+                        text: token.text,
+                        type: token.type,
+                        x: Math.round(token.x * 100) / 100,
+                        width: Math.round(token.w * 100) / 100
+                    }));
+                const compactLine = line => {
+                    const tokens = lineTokens(line);
+                    return {
+                        y: Math.round(line.y * 100) / 100,
+                        width: Math.round(line.w * 100) / 100,
+                        height: Math.round(line.h * 100) / 100,
+                        text: tokens.map(token => token.text).join('').slice(0, 240),
+                        tokens: tokens.slice(0, 40)
+                    };
+                };
+                const splitAttr = name => el?.getAttribute(name) ?? null;
+                const cs = el ? getComputedStyle(el) : null;
+
+===== GOLD (HEAD של Gold) =====
+            if (!hasSmallContentOnLastLine) {

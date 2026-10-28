@@ -1,0 +1,12 @@
+# geometry-audit.js hunk 6 — שורה 1321, פונקציה מקיפה: auditSparseLastLine
+
+===== GREEN (HEAD של Green) =====
+                    if (Math.abs(spanTop - lastLineTop) < 8) {
+                        hasParenOnLastLine = true;
+
+===== GOLD (HEAD של Gold) =====
+                    const spanBottom = Math.round(sr.bottom - off.y);
+                    // [תיקון — Finding 2] בדיקת חפיפה אנכית (overlap)
+                    // אם ה-span מצטלב עם השורה האחרונה בציר ה-Y, נחשב אותו כ"על השורה האחרונה"
+                    if (spanTop <= lastLineBottom + 2 && spanBottom >= lastLineTop - 2) {
+                        hasSmallContentOnLastLine = true;

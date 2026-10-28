@@ -1,0 +1,23 @@
+# typesetter.js hunk 19 — שורה 6718, פונקציה מקיפה: typesetDocumentCore
+
+===== GREEN (HEAD של Green) =====
+                globalJustifyOvershootAfterShrink = lC.scrollHeight - rH;
+
+===== GOLD (HEAD של Gold) =====
+                // [חדש — B1 תיקון] אם שמאל לא הצליח להגיע לימין (פער נותר > 5px),
+                // נסה לכווץ את ימין לגובה של שמאל. זה מאזן את הטורים גם כש-shmuel
+                // לא מצליח להימתח מספיק (למשל כשאין כותרות H4/H5/H6 וקיבולת ה-line-height
+                // מוגבלת). התנאי: הפער הנותר > 5px (מעל סף האיזון) ו-shrinkColumnVertically
+                // מסוגל לכווץ.
+                const lHfinal = lC.scrollHeight;
+                const remainingDiff = rH - lHfinal;
+                if (remainingDiff > 5) {
+                    // נסה לכווץ את ימין לגובה של שמאל — זה ייצור איזון
+                    const rHbefore = rC.scrollHeight;
+                    shrinkColumnVertically(rC, lHfinal, styleObj, 150);
+                    const rHafter = rC.scrollHeight;
+                    // אם הכיווץ הצליח להביא את ימין קרוב לשמאל — עדכן את rH
+                    if (Math.abs(rHafter - lHfinal) < Math.abs(rHbefore - lHfinal)) {
+                        rH = rHafter;
+                    }
+                }

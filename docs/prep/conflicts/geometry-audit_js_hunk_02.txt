@@ -1,0 +1,25 @@
+# geometry-audit.js hunk 2 — שורה 723, פונקציה מקיפה: auditContainment
+
+===== GREEN (HEAD של Green) =====
+            } else if (isNoteMarker && overflowPx <= 3) {
+                // Inline/superscript note markers can extend slightly beyond the paragraph
+                // line box; a ~2–3px vertical protrusion is not a page-layout failure.
+                severity = 'low';
+                kind = 'containment-rounding';
+                note = ' (חריגה אנכית קטנה של סמן הערה בתוך שורת טקסט)';
+            } else if (child.type === 'header-col') {
+                // Header text/SVG can exceed the grid row by a few pixels because of line boxes.
+                // Keep small overflow visible as a warning, not a critical geometry failure.
+                severity = overflowPx > 8 ? 'high' : (overflowPx > 3 ? 'medium' : 'low');
+                note = ' (חריגה אנכית של עמודת כותרת)';
+
+===== GOLD (HEAD של Gold) =====
+            } else if (isNoteMarker && overflowPx <= 5) {
+                severity = 'low';
+                kind = 'containment-rounding';
+                note = ' (עיגול פיקסלים של סמן הערה)';
+            } else if (child.type === 'sec-div' && overflowPx <= 5) {
+                // [תיקון] sec-div עם overflow קטן = עיגול פיקסלים
+                severity = 'low';
+                kind = 'containment-rounding';
+                note = ' (עיגול פיקסלים של מפריד סעיפים)';

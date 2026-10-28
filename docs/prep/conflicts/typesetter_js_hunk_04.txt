@@ -1,0 +1,7 @@
+# typesetter.js hunk 4 — שורה 769, פונקציה מקיפה: buildHeaderGridHTML
+
+===== GREEN (HEAD של Green) =====
+        <div class="header-col-c" style="text-align:${hdrCAlign}; justify-content:${hdrCAlign}; font-family:${hdrCFont}; font-size:${hdrCSize};">${hdrCHTML}</div>
+
+===== GOLD (HEAD של Gold) =====
+        <div class="header-col-c" style="text-align:${hdrCAlign}; justify-content:${hdrCAlign}; font-family:${cSet.font || hdrRFont}; font-size:${(cSet.size || 11) + 'pt'};">${hdrCHTML}</div>

@@ -1,0 +1,16 @@
+# typesetter.js hunk 17 — שורה 6456, פונקציה מקיפה: typesetDocumentCore
+
+===== GREEN (HEAD של Green) =====
+            // Final reservation check: stretching, orphan-tail reclamation, and the final
+            // column-justification pass can change the page's note queue after the first
+            // redoCheck. Check again at the last point where the whole page can still be
+            // discarded and deterministically rebuilt from pageState.
+            if (redoCheck()) continue;
+
+===== GOLD (HEAD של Gold) =====
+            // [חדש — per-page-checkpoints] אם הדגל מופעל, הפעל checkpoint אחרי כל עמוד
+            // כדי לאפשר אבחון מדויק של בעיות שנוצרות בתוך הלולאה הראשית.
+            // הדגל נפרד מ-__stepByStepAudit כי הוא יוצר checkpoint נוסף לכל עמוד (איטי יותר).
+            if (window.__stepByStepAudit && window.__stepByStepAuditPerPage) {
+                window.__runAuditCheckpoint('page-' + (pageIndex - 1));
+            }

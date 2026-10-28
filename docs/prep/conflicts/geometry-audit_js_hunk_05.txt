@@ -1,0 +1,21 @@
+# geometry-audit.js hunk 5 — שורה 1291, פונקציה מקיפה: auditSparseLastLine
+
+===== GREEN (HEAD של Green) =====
+            // Parenthetical text is intentionally set smaller and can look sparse
+            // while still carrying a full line of content.
+
+===== GOLD (HEAD של Gold) =====
+            // [תיקון חשוב] בדוק אם השורה האחרונה מכילה טקסט בסוגריים (paren-text).
+            // טקסט בסוגריים מוצג בגופן קטן יותר (בד"כ -2pt), ולכן השורה נראית "דלילה"
+            // למרות שהיא מלאה בתוכן. זוהי התראת שווא — אל תדווח.
+            //
+            // [תיקון — 2026-10-27 Finding 2] הבדיקה הקודמת השוותה רק את TOP של ה-span
+            // ל-TOP של השורה האחרונה (עם סטייה של 8px). אבל paren-text span יכול להיות
+            // מרוב-שורות — ה-TOP שלו יכול להיות בשורה קודמת, והוא עדיין מכסה את השורה
+            // האחרונה. לכן עברנו לבדיקת חפיפה אנכית (overlap): האם טווח ה-Y של ה-span
+            // מצטלב עם טווח ה-Y של השורה האחרונה.
+            //
+            // [תיקון נוסף — Finding 2] גם note-marker (סימון הערה) ו-first-word-window
+            // (עיצוב מילה ראשונה) הם אלמנטים קטנים שיכולים להופיע בשורה האחרונה
+            // ולהצדיק "שורה דלילה" — הרי התוכן אינו חלק מהפסקה הרגילה.
+            // לכן בודקים גם note-marker, וכן first-word-window/first-word-inline/first-word-bold.

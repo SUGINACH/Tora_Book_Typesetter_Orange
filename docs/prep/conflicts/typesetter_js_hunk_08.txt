@@ -1,0 +1,8 @@
+# typesetter.js hunk 8 — שורה 1979, פונקציה מקיפה: stretchLastBlockToBottom
+
+===== GREEN (HEAD של Green) =====
+        justifyColumnVertically(col, target, styleObj, maxStretch + 1, JUSTIFY_MAX_LH_EXTRA);
+        if (!stretchFitsOuterBox()) return false;
+
+===== GOLD (HEAD של Gold) =====
+        justifyColumnVertically(col, target, styleObj, maxStretch + 1, JUSTIFY_MAX_LH_EXTRA, false);

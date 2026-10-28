@@ -1,0 +1,12 @@
+# typesetter.js hunk 15 — שורה 5958, פונקציה מקיפה: typesetDocumentCore
+
+===== GREEN (HEAD של Green) =====
+                    remPageHeight = Math.max(0, flowBottom - spanBlock.getBoundingClientRect().bottom);
+
+===== GOLD (HEAD של Gold) =====
+                    // [חדש] עדכן את הכותרת הקודמת מרמה זו, ונקה כותרות נמוכות יותר
+                    lastHeadingSeen[peekTok.level] = peekTok.id;
+                    for (let l = peekTok.level + 1; l <= 7; l++) {
+                        lastHeadingSeen[l] = null;
+                    }
+                    remPageHeight -= spanHeight;

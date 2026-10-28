@@ -1,0 +1,58 @@
+# geometry-audit.js hunk 3 — שורה 957, פונקציה מקיפה: auditColumnBalance
+
+===== GREEN (HEAD של Green) =====
+            const rightHeight = Number.isFinite(right.rect.h) ? right.rect.h : 0;
+            const leftHeight = Number.isFinite(left.rect.h) ? left.rect.h : 0;
+            const diff = Math.abs(rightHeight - leftHeight);
+            const fullWidthFallback = blockEl?.getAttribute('data-layout-balance-fallback') === 'full-width-terminal-residual';
+            if (fullWidthFallback) {
+                const side = blockEl.getAttribute('data-layout-balance-fallback-side');
+                const activeEl = blockEl.querySelector(side === 'left' ? '.main-column.left-col' : '.main-column.right-col');
+                const inactiveEl = blockEl.querySelector(side === 'left' ? '.main-column.right-col' : '.main-column.left-col');
+                const activeStyle = activeEl ? activeEl.ownerDocument.defaultView.getComputedStyle(activeEl) : null;
+                const inactiveStyle = inactiveEl ? inactiveEl.ownerDocument.defaultView.getComputedStyle(inactiveEl) : null;
+                const activeRect = activeEl ? rectOf(activeEl) : null;
+                const activeParagraph = activeEl?.querySelector(':scope > p') || null;
+                const activeParagraphStyle = activeParagraph
+                    ? activeParagraph.ownerDocument.defaultView.getComputedStyle(activeParagraph) : null;
+                const activeParagraphRect = activeParagraph ? rectOf(activeParagraph) : null;
+                const activeLineHeight = parseFloat(activeParagraphStyle?.lineHeight || '');
+                const activeRenderedLineCount = activeParagraph && Number.isFinite(activeParagraphRect?.h) &&
+                    Number.isFinite(activeLineHeight) && activeLineHeight > 0
+                    ? Math.max(1, Math.round(activeParagraphRect.h / activeLineHeight))
+                    : null;
+                const widowOrphanValid = !activeParagraph?.classList.contains('p-cut') ||
+                    (Number.isFinite(activeRenderedLineCount) && activeRenderedLineCount >= 2);
+                const fallbackValid = ['left', 'right'].includes(side) &&
+                    !!activeEl && !!inactiveEl &&
+                    activeStyle?.display !== 'none' &&
+                    activeStyle?.gridColumnStart === '3' &&
+                    activeStyle?.gridColumnEnd === '6' &&
+                    inactiveStyle?.display === 'none' &&
+                    !!activeRect && activeRect.w > 0 &&
+                    (activeEl.textContent || '').trim().length > 0 &&
+                    inactiveEl.children.length === 0 &&
+                    widowOrphanValid;
+                issues.push({
+                    kind: 'structural-fallback',
+                    severity: fallbackValid ? 'low' : 'high',
+
+===== GOLD (HEAD של Gold) =====
+            const diff = Math.abs(right.rect.h - left.rect.h);
+            if (diff > TOL.balance) {
+                // [תיקון 2-fix-stretchPageToBottom-overshoot] בדוק אם ה-block-2col מכיל p-cut
+                // (cross-page). אם כן, ה-engine מתקשה לאזן כי אי אפשר לפצל את ה-p-cut
+                // בין הטורים. במקרה כזה, imbalance עד 80px הוא medium (לא high).
+                const hasPCut = (function hasCut(n) {
+                    if (n.type === 'p-cut') return true;
+                    return (n.children || []).some(hasCut);
+                })(node);
+                let severity;
+                if (hasPCut && diff <= 80) {
+                    severity = diff > 50 ? 'medium' : (diff > 10 ? 'medium' : 'low');
+                } else {
+                    severity = diff > 50 ? 'high' : (diff > 20 ? 'medium' : 'low');
+                }
+                issues.push({
+                    kind: 'imbalance',
+                    severity: severity,

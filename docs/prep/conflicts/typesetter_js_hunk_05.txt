@@ -1,0 +1,12 @@
+# typesetter.js hunk 5 — שורה 1752, פונקציה מקיפה: justifyColumnVertically
+
+===== GREEN (HEAD של Green) =====
+        const totalStretchUnits = infos.reduce((a, i) => a + i.stretchUnits, 0);
+        if (!(totalStretchUnits > 0)) break;
+        const e = rest / totalStretchUnits;
+
+===== GOLD (HEAD של Gold) =====
+        const totalLines = infos.reduce((a, i) => a + i.lines, 0);
+        if (!(totalLines > 0)) break;
+        // [תיקון רגרסיה] חשב את המתיחה לפי ה-rest הנוכחי, אבל רק 50% ממנה
+        const e = (rest / totalLines) * 0.5;
