@@ -1,0 +1,324 @@
+name: Geometry audit long document
+
+concurrency:
+  group: geometry-audit-long-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [V23]
+    paths:
+      - 'typesetter.js'
+      - 'style.css'
+      - 'decorations.js'
+      - 'app.js'
+      - 'index.html'
+      - 'default_settings.json'
+      - 'geometry-audit.js'
+      - 'renderer-bridge.js'
+      - 'tools/geometry-audit-cli.js'
+      - 'very_long_test_text.txt'
+      - 'package.json'
+      - '.github/workflows/geometry-audit-long.yml'
+  workflow_dispatch:
+
+jobs:
+  geometry-audit-long:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Syntax-check geometry audit CLI
+        run: node --check tools/geometry-audit-cli.js
+      - name: Install dependencies
+        run: npm install
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Verify long input
+        run: |
+          test -s ./very_long_test_text.txt
+          wc -c ./very_long_test_text.txt
+      - name: Record reproducible run fingerprint
+        run: |
+          mkdir -p artifacts
+          node - <<'NODE'
+          const fs = require('node:fs');
+          fs.writeFileSync('artifacts/run-fingerprint.json', JSON.stringify({
+            repository: process.env.GITHUB_REPOSITORY,
+            ref: process.env.GITHUB_REF,
+            sha: process.env.GITHUB_SHA,
+            runId: process.env.GITHUB_RUN_ID,
+            runAttempt: process.env.GITHUB_RUN_ATTEMPT,
+            runnerOs: process.env.RUNNER_OS,
+            nodeVersion: process.version,
+            workflow: '.github/workflows/geometry-audit-long.yml'
+          }, null, 2));
+          NODE
+      - name: Run long-document geometry audit
+        run: npm run audit:geometry:long -- --fail-on high --repeat-check --step-audit-disabled --require-note-marker-line-diagnostics
+      - name: Assert step-audit suppression is explicit in default full-document report
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          for (const file of ['./artifacts/geometry-audit.json']) {
+            const report = JSON.parse(fs.readFileSync(file, 'utf8'));
+            const mode = report.run?.stepAudit;
+            const issues = report.audit?.issues || [];
+            const malformed = issues.filter(issue =>
+              issue.stepByStepTrace?.traceAvailable !== false ||
+              issue.stepByStepTrace?.reason !== 'step-audit-disabled-by-request' ||
+              typeof issue.stepByStepTrace?.detail !== 'string' ||
+              !issue.stepByStepTrace.detail.includes('Full-document workflow disables step tracing'));
+            if (!mode || mode.enabled !== false || mode.disabledByRequest !== true ||
+                mode.disableReason !== 'full-document-stability-policy' || malformed.length) {
+              console.error('Full-document trace suppression must be explicit and must not look like missing instrumentation:', {
+                file, mode, issueCount: issues.length, malformedTraceSamples: malformed.slice(0, 10)
+              });
+              process.exit(1);
+            }
+            console.log(JSON.stringify({file, stepAudit: mode, issueCount: issues.length,
+              allIssuesExplicitlyMarkedTraceDisabled: true, tracePolicyGate: 'PASS'}));
+          }
+          NODE
+      - name: Assert terminal residual fallbacks do not leave sparse last lines
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync('./artifacts/geometry-audit.json', 'utf8'));
+          const records = report.geometry?.layoutDecisionRecords || [];
+          const residuals = records.filter(record =>
+            record.decision?.selection?.fallback === 'full-width-terminal-residual');
+          const unresolved = residuals.filter(record =>
+            record.decision?.selection?.fallbackSparseLine === 'unresolved');
+          const sparseFallbacks = (report.audit?.issues || []).filter(issue =>
+            issue.kind === 'sparse-line' &&
+            issue.balanceFallback === 'full-width-terminal-residual');
+          if (unresolved.length || sparseFallbacks.length) {
+            console.error('A full-width terminal residual still has a sparse final line or an unresolved density decision.', {
+              unresolved: unresolved.map(record => ({
+                pageLabel: record.pageLabel,
+                selection: record.decision?.selection
+              })),
+              sparseFallbacks
+            });
+            process.exit(1);
+          }
+          console.log(JSON.stringify({
+            terminalResidualFallbacks: residuals.length,
+            sparseLineCorrections: residuals.filter(record =>
+              record.decision?.selection?.fallbackSparseLine === 'corrected').length,
+            sparseLineGate: 'PASS'
+          }));
+          NODE
+      - name: Run long-document geometry audit with active ornaments
+        run: |
+          node tools/geometry-audit-cli.js \
+            --input ./very_long_test_text.txt \
+            --settings ./tests/fixtures/ornament-geometry-settings.json \
+            --timeout-ms 900000 \
+            --report ./artifacts/geometry-audit-ornaments.json \
+            --summary ./artifacts/geometry-audit-ornaments-summary.md \
+            --fail-on high \
+            --repeat-check \
+            --step-audit-disabled \
+            --require-ornaments \
+            --require-note-marker-line-diagnostics
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync('./artifacts/geometry-audit-ornaments.json', 'utf8'));
+          const features = report.geometry?.decorativeGeometryDomCoverage || {};
+          const required = ['sectionDivider', 'noteRule', 'topHeader', 'topHeaderDivider'];
+          const missing = required.filter(key => !(features[key] > 0));
+          if (missing.length) {
+            console.error('Required long-document divider/header geometry missing or zero:', {
+              missing,
+              measured: features
+            });
+            process.exit(1);
+          }
+          console.log(JSON.stringify({
+            activeOrnamentCoverage: report.geometry?.ornamentDomCoverage || {},
+            decorativeGeometryCoverage: features,
+            dividerHeaderGate: 'PASS'
+          }));
+          NODE
+      - name: Assert step-audit suppression is explicit in ornament full-document report
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const file = './artifacts/geometry-audit-ornaments.json';
+          const report = JSON.parse(fs.readFileSync(file, 'utf8'));
+          const mode = report.run?.stepAudit;
+          const issues = report.audit?.issues || [];
+          const malformed = issues.filter(issue =>
+            issue.stepByStepTrace?.traceAvailable !== false ||
+            issue.stepByStepTrace?.reason !== 'step-audit-disabled-by-request' ||
+            typeof issue.stepByStepTrace?.detail !== 'string' ||
+            !issue.stepByStepTrace.detail.includes('Full-document workflow disables step tracing'));
+          if (!mode || mode.enabled !== false || mode.disabledByRequest !== true ||
+              mode.disableReason !== 'full-document-stability-policy' || malformed.length) {
+            console.error('Ornament full-document trace suppression must be explicit:', {
+              file, mode, issueCount: issues.length, malformedTraceSamples: malformed.slice(0, 10)
+            });
+            process.exit(1);
+          }
+          console.log(JSON.stringify({file, stepAudit: mode, issueCount: issues.length,
+            allIssuesExplicitlyMarkedTraceDisabled: true, tracePolicyGate: 'PASS'}));
+          NODE
+      - name: Assert global-justify rollback residuals are explicitly diagnosed
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync('./artifacts/geometry-audit-ornaments.json', 'utf8'));
+          const issues = report.audit?.issues || [];
+          const parseDiagnostic = value => {
+            if (value && typeof value === 'object') return value;
+            if (typeof value !== 'string') return null;
+            try { return JSON.parse(value); } catch (_) { return null; }
+          };
+          const rollbackResiduals = issues.filter(issue => {
+            if (issue.kind !== 'imbalance') return false;
+            const diagnostic = parseDiagnostic(issue.layoutMetrics?.globalJustifyDiagnostic);
+            return diagnostic?.rollback?.outerGrowth === true &&
+              diagnostic?.rollback?.tallestGrowth === true;
+          });
+          const misclassified = rollbackResiduals.filter(issue =>
+            issue.balanceOutcome !== 'global-justify-rollback-residual' ||
+            issue.balanceDiagnosis?.source !== 'global-justify-diagnostic' ||
+            issue.balanceDiagnosis?.reason !== 'rollback-after-outer-and-tallest-growth');
+          if (misclassified.length) {
+            console.error('Global-justify rollback residuals lack explicit diagnosis:', misclassified.map(issue => ({
+              pageIdx: issue.pageIdx,
+              diff: issue.diff,
+              balanceOutcome: issue.balanceOutcome,
+              balanceDiagnosis: issue.balanceDiagnosis
+            })));
+            process.exit(1);
+          }
+          console.log(JSON.stringify({
+            globalJustifyRollbackResidualCount: rollbackResiduals.length,
+            allExplicitlyDiagnosed: true,
+            findingsRemainInIssueInventory: true,
+            diagnosticGate: 'PASS'
+          }));
+          NODE
+      - name: Assert container-gap diagnostics account for every page
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          for (const file of ['./artifacts/geometry-audit.json', './artifacts/geometry-audit-ornaments.json']) {
+            const report = JSON.parse(fs.readFileSync(file, 'utf8'));
+            const check = report.audit?.checks?.containerGap;
+            const reasonCount = check?.notEvaluatedReasons && typeof check.notEvaluatedReasons === 'object'
+              ? Object.values(check.notEvaluatedReasons).reduce((sum, count) => sum + (Number.isInteger(count) && count > 0 ? count : 0), 0)
+              : 0;
+            const notEvaluatedPages = check?.notEvaluatedPages;
+            const excludedPages = check?.excludedPages;
+            if (!check || !Array.isArray(excludedPages) ||
+                excludedPages.length !== check.pagesExcluded ||
+                excludedPages.some(page =>
+                  !Number.isInteger(page.pageIdx) ||
+                  typeof page.reason !== 'string' ||
+                  (page.reason === 'explicit-special-page-role'
+                    ? typeof page.specialPageType !== 'string' || typeof page.pageClass !== 'string'
+                    : page.specialPageType != null || page.pageClass != null))) {
+              console.error('Page exclusion records are missing, malformed, or inconsistent with their reason:', file, {
+                pagesExcluded: check?.pagesExcluded,
+                excludedPages: Array.isArray(excludedPages) ? excludedPages.length : null,
+                malformedSamples: Array.isArray(excludedPages) ? excludedPages.filter(page =>
+                  !Number.isInteger(page.pageIdx) ||
+                  typeof page.reason !== 'string' ||
+                  (page.reason === 'explicit-special-page-role'
+                    ? typeof page.specialPageType !== 'string' || typeof page.pageClass !== 'string'
+                    : page.specialPageType != null || page.pageClass != null)).slice(0, 10) : null
+              });
+              process.exit(1);
+            }
+            if (!Array.isArray(notEvaluatedPages) ||
+                notEvaluatedPages.length !== check.pagesNotEvaluated ||
+                notEvaluatedPages.some(page =>
+                  !Number.isInteger(page.pageIdx) ||
+                  typeof page.reason !== 'string' ||
+                  !Number.isInteger(page.bodyFlowCount) ||
+                  !Array.isArray(page.directChildClasses))) {
+              console.error('Per-page incomplete-coverage diagnostics are missing or inconsistent:', file, {
+                pagesNotEvaluated: check?.pagesNotEvaluated,
+                notEvaluatedPages: Array.isArray(notEvaluatedPages) ? notEvaluatedPages.length : null
+              });
+              process.exit(1);
+            }
+            if (!check || check.enabled !== true || check.pageCount !== report.pageCount ||
+                !Number.isInteger(check.pagesEvaluated) || check.pagesEvaluated < 0 ||
+                !Number.isInteger(check.pagesNotEvaluated) || check.pagesNotEvaluated < 0 ||
+                !Number.isInteger(check.pagesExcluded) || check.pagesExcluded < 0 ||
+                check.pagesEvaluated + check.pagesExcluded + check.pagesNotEvaluated !== check.pageCount ||
+                reasonCount !== check.pagesNotEvaluated ||
+                check.coverageComplete !== (check.pagesNotEvaluated === 0) ||
+                !Number.isFinite(check.warningThresholdPx) ||
+                !Number.isFinite(check.mediumThresholdPx) ||
+                check.findingCount !== (report.audit?.issues || []).filter(issue => issue.kind === 'container-gap').length) {
+              console.error('Container-gap accounting is missing, incomplete, or inconsistent:', file, check);
+              process.exit(1);
+            }
+            const malformed = (report.audit?.issues || []).filter(issue =>
+              issue.kind === 'container-gap' &&
+              (!Number.isFinite(issue.gapPx) || issue.gapPx <= check.warningThresholdPx ||
+               !['low', 'medium'].includes(issue.severity) ||
+               !['footnote-area-top', 'body-flow-bottom'].includes(issue.to) ||
+               !issue.gapContext || issue.gapContext.contextSchemaVersion !== 2 ||
+               !issue.gapContext.lastTextElement ||
+               !issue.gapContext.bodyFlow ||
+               !issue.gapContext.bodyFlow.computedLayout ||
+               !issue.gapContext.lastTextComputedLayout ||
+               !Array.isArray(issue.gapContext.lastTextAncestorChain) ||
+               issue.gapContext.lastTextAncestorChain.some(node =>
+                 !Number.isFinite(node.widthPx) || !Number.isFinite(node.heightPx) || !node.computedLayout) ||
+               !Array.isArray(issue.gapContext.currentBodyFlowChildren) ||
+               issue.gapContext.currentBodyFlowChildren.some(node =>
+                 !Number.isFinite(node.widthPx) || !Number.isFinite(node.heightPx) ||
+                 !node.computedLayout || !Array.isArray(node.columns) ||
+                 node.columns.some(column => !Number.isFinite(column.widthPx) ||
+                   !Number.isFinite(column.heightPx) || !column.computedLayout)) ||
+               (issue.gapContext.nextPage !== null &&
+                 (typeof issue.gapContext.nextPage !== 'object' ||
+                  !Array.isArray(issue.gapContext.nextPage.bodyFlowChildren)))));
+            if (malformed.length) {
+              console.error('Malformed container-gap finding:', file, malformed.slice(0, 5));
+              process.exit(1);
+            }
+            console.log(JSON.stringify({file, pageCount: check.pageCount, pagesEvaluated: check.pagesEvaluated,
+              pagesNotEvaluated: check.pagesNotEvaluated, notEvaluatedReasons: check.notEvaluatedReasons,
+              coverageComplete: check.coverageComplete,
+              warningThresholdPx: check.warningThresholdPx, mediumThresholdPx: check.mediumThresholdPx,
+              findingCount: check.findingCount,
+              findingsWithStructuralContext: (report.audit?.issues || []).filter(issue =>
+                issue.kind === 'container-gap' && issue.gapContext?.contextSchemaVersion === 2).length,
+              pagesExcluded: check.pagesExcluded, excludedReasons: check.excludedReasons,
+              excludedPageSamples: excludedPages.slice(0, 25),
+              notEvaluatedPageSamples: notEvaluatedPages.slice(0, 25).map(page => ({
+                pageIdx: page.pageIdx, pageLabel: page.pageLabel, reason: page.reason,
+                domPageIndex: page.domPageIndex, pageClass: page.pageClass,
+                directChildClasses: page.directChildClasses, bodyFlowCount: page.bodyFlowCount,
+                visibleTextElementCount: page.visibleTextElementCount, pageTextPreview: page.pageTextPreview
+              })),
+              accountingGate: 'PASS',
+              geometryCoverage: check.coverageComplete ? 'COMPLETE' : 'INCOMPLETE_REQUIRES_FOLLOWUP'}));
+          }
+          NODE
+      - name: Upload long-document audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: geometry-audit-long-report
+          path: |
+            artifacts/geometry-audit.json
+            artifacts/geometry-audit-summary.md
+            artifacts/geometry-audit-ornaments.json
+            artifacts/geometry-audit-ornaments-summary.md
+            artifacts/run-fingerprint.json
+          if-no-files-found: warn
