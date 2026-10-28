@@ -6,9 +6,9 @@ concurrency:
 
 on:
   push:
-    branches: [V23]
+    branches: [main]
   pull_request:
-    branches: [V23]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -23,7 +23,7 @@ jobs:
         with:
           node-version: 22
       - name: Install dependencies
-        run: npm install
+        run: npm ci
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Check CLI syntax

@@ -6,7 +6,7 @@ concurrency:
 
 on:
   push:
-    branches: [V23]
+    branches: [main]
     paths:
       - 'typesetter.js'
       - 'style.css'
@@ -36,7 +36,7 @@ jobs:
       - name: Syntax-check geometry audit CLI
         run: node --check tools/geometry-audit-cli.js
       - name: Install dependencies
-        run: npm install
+        run: npm ci
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Verify long input
