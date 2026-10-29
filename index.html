@@ -1022,6 +1022,13 @@
                   <span class="btn-toggle-box"><span class="check-icon">✓</span>פצל את שם הספר אוטומטית בין ימין ושמאל</span>
                 </label>
               </div>
+              <div class="inline-cfg-row" style="margin-bottom:8px;">
+                <label title="קובע מה יוצג בכותרת העליונה כשהיא מציגה את כותרת 1">טקסט כותרת 1 בכותרת עליונה:</label>
+                <select id="hdr-h1-title-mode" onchange="if (typeof typesetDocument === 'function') typesetDocument();" style="flex:1;">
+                  <option value="full" selected="selected">מלא (כולל מה שאחרי המקף)</option>
+                  <option value="main">רק החלק שלפני המקף הראשון</option>
+                </select>
+              </div>
 
               <div class="inline-cfg-row">
                 <label>קו מפריד לגוף הטקסט:</label>

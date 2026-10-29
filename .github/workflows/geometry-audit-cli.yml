@@ -28,6 +28,8 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Settings wiring test (every declared setting must reach the engine)
         run: node tests/settings-wiring.test.js
+      - name: Header settings test (same_as_even, hdr-h1-title-mode)
+        run: node tests/header-settings.test.js
       - name: Check CLI syntax
         run: node --check tools/geometry-audit-cli.js
       - name: Check browser script syntax

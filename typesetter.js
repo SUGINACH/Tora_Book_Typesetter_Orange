@@ -586,6 +586,16 @@ function resolveHeaderAlign(align, slot) {
     return align;
 }
 
+/* hdr-h1-title-mode: 'full' (ברירת מחדל) = הטקסט המלא של כותרת 1 בכותרת העליונה;
+   'main' = רק החלק שלפני המקף הראשון (titleMain, כמו ב-renderSubShaar).
+   שתי ההתנהגויות נדרשו בשתי שורות הפיתוח (Green: מלא, Gold: titleMain), ולכן זו הגדרה ולא החלפה. */
+function extractH1TitleMain(text) {
+    if (!text) return '';
+    text = text.trim();
+    if (!/[-–—]/.test(text)) return text;
+    return text.split(/[-–—]/)[0].trim();
+}
+
 /* [חדש] בונה את HTML של פס הכותרת העליונה (שלוש עמודות) לעמוד לפי כל הגדרות הכותרות העליונות:
    כותרות מתחלפות (בעמוד זוגי), "פצל שם ספר", יישור חיצוני/פנימי לפי העמודה הפיזית, וגופן/גודל לכל צד.
    משמש גם את עמודי התוכן וגם את עמודי תוכן העניינים - כך שההתנהגות זהה בכל עמוד בספר.
@@ -635,6 +645,17 @@ function buildHeaderGridHTML(pNum, h1Title, h2Title, h3Title, bookTitle, customR
         if (versoR.selected === 'custom') cR = document.getElementById('hdr-verso-r-custom')?.value || '';
         if (versoC.selected === 'custom') cC = document.getElementById('hdr-verso-c-custom')?.value || '';
         if (versoL.selected === 'custom') cL = document.getElementById('hdr-verso-l-custom')?.value || '';
+    } else if (isDistinctEvenOdd) {
+        // [תיקון] same_as_even בעמוד אי-זוגי: האפשרות מוצעת בממשק אך לא טופלה (הכותרת נשארה ריקה).
+        // כאן היא נפתרת לסוג של העמוד הזוגי באותה עמודה. מעגליות (גם הזוגי "זהה לאי-זוגי") משאירה את המשבצת ריקה.
+        const resolveEvenType = (side, type) => {
+            if (type !== 'same_as_even') return type;
+            const v = document.getElementById('hdr-verso-' + side + '-type')?.value || '';
+            return (v === 'same_as_odd' || v === 'same_as_even') ? '' : v;
+        };
+        hdrRType = resolveEvenType('r', hdrRType);
+        hdrCType = resolveEvenType('c', hdrCType);
+        hdrLType = resolveEvenType('l', hdrLType);
     }
 
     // היפוך תוכן (לא יישור) בעמודים זוגיים בעת הפעלת כותרות מתחלפות.
@@ -4339,7 +4360,8 @@ function typesetDocumentCore() {
             // [תיקון] שם החלק לכותרת העליונה = הטקסט המלא של כותרת 1 (לא רק החלק לפני המקף).
             // קודם היה: sec.token.text.split(/[-–—]/)[0].trim() — שלקח רק את titleMain (למשל "חלק א")
             // במקום השם המלא ("חלק א - הלכות שבת"). הכותרת העליונה צריכה להציג את שם החלק המלא.
-            currentH1Title = sec.token.text;
+            currentH1Title = (document.getElementById('hdr-h1-title-mode')?.value === 'main')
+                ? extractH1TitleMain(sec.token.text) : sec.token.text;
             headingPageMap[sec.token.id] = toGematria(pageIndex);
 
             if (enableDetailedTOC) {
@@ -4391,7 +4413,8 @@ function typesetDocumentCore() {
         // קודם, currentH1Title התעדכן רק במקרה sub_shaar (שורה 3338). במקרה הרגיל (new_page_1col / new_page_2col),
         // כותרת level 1 לא עודכנה ב-currentH1Title, ולכן הכותרת העליונה שמוגדרת כ-h1 הייתה ריקה.
         if (sec.isNewPage && sec.hToken && sec.hToken.level === 1) {
-            currentH1Title = sec.hToken.text;
+            currentH1Title = (document.getElementById('hdr-h1-title-mode')?.value === 'main')
+                ? extractH1TitleMain(sec.hToken.text) : sec.hToken.text;
         }
 
         let simanLabel = '';

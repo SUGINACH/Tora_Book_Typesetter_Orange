@@ -27,7 +27,7 @@
         'h2-top-distance','h3-ornament-l','h3-ornament-r','h3-ornament-set',
         'hdr-alternating','hdr-c-align','hdr-c-custom','hdr-c-type','hdr-divider-style',
         'hdr-distinct-even-odd','hdr-l-align','hdr-l-custom','hdr-l-type','hdr-r-align','hdr-r-custom','hdr-r-type',
-        'hdr-title-split','hdr-verso-c-align','hdr-verso-c-custom','hdr-verso-c-type',
+        'hdr-h1-title-mode','hdr-title-split','hdr-verso-c-align','hdr-verso-c-custom','hdr-verso-c-type',
         'hdr-verso-l-align','hdr-verso-l-custom','hdr-verso-l-type',
         'hdr-verso-r-align','hdr-verso-r-custom','hdr-verso-r-type',
         'hdr-w-c','hdr-w-l','hdr-w-r',
