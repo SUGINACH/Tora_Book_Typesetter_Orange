@@ -406,6 +406,14 @@
               <!-- עיטורי שורת הסימן בכותרת 2 -->
               <div class="panel-sub-header">כותרת 2 — עיטור שורת הסימן (עליון/תחתון)</div>
               <div class="inline-cfg-row">
+                <label title="היכן ממוקמים העיטורים העליון והתחתון ביחס לסימן ולכותרת. עיטורים נפרדים לכותרת עצמה נקבעים בהגדרה 'עיטורי כותרת' שמתחת.">תחולת עיטורים:</label>
+                <select id="h2-orn-scope" style="flex:1;" onchange="if (typeof typesetDocument === 'function') typesetDocument();">
+                  <option value="both" selected="selected">על סימן וכותרת יחד</option>
+                  <option value="siman_only">רק על הסימן</option>
+                  <option value="title_only">רק על הכותרת</option>
+                </select>
+              </div>
+              <div class="inline-cfg-row">
                 <label>סט שלם (ע+ת):</label>
                 <select id="h2-ornament-set" style="flex:1;" onchange="onH2OrnamentSetChange(this.value)">
                   <option value="none" selected="selected">ללא עיטורים</option>

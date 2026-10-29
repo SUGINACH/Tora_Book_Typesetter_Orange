@@ -30,6 +30,10 @@ jobs:
         run: node tests/settings-wiring.test.js
       - name: Header settings test (same_as_even, hdr-h1-title-mode)
         run: node tests/header-settings.test.js
+      - name: Settings consistency test (whitelist vs UI vs defaults)
+        run: node tests/settings-consistency.test.js
+      - name: H2 ornament scope test
+        run: node tests/h2-ornament-scope.test.js
       - name: Check CLI syntax
         run: node --check tools/geometry-audit-cli.js
       - name: Check browser script syntax

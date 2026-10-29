@@ -245,5 +245,6 @@
   "general-toc-show-numbering": true,
   "detailed-toc-count-numbering": true,
   "detailed-toc-show-numbering": true,
-  "hdr-h1-title-mode": "full"
+  "hdr-h1-title-mode": "full",
+  "h2-orn-scope": "both"
 }

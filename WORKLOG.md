@@ -2,6 +2,14 @@
 
 Entries are newest first. Every change records: what, why, how it was verified, and what was NOT verified.
 
+## 4C — `h2-orn-scope` reachable from the UI + settings consistency test
+- **Finding:** the engine already implements H2 ornament scopes (`both`, `siman_only`, `title_only`) and `renderer-bridge.js` accepts `h2-orn-scope`, but there was no control in `index.html` and no default in `default_settings.json`: the feature existed and could not be reached. Gold had the control (plus a 4th option `separate`, which here is covered by the existing `h2-title-orn-mode` = top/bottom).
+- **What:** added the `h2-orn-scope` select (3 options) and the default `both` (equal to the engine's built-in default, so layouts do not change).
+- **Tests:** `tests/h2-ornament-scope.test.js` (engine order of top/siman/title/bottom per scope: 5/5 before and after: behaviour was already correct) and `tests/settings-consistency.test.js` (every id accepted by the renderer has a UI control and a default, except 6 documented exemptions): before 2/4, after 4/4. Both run in CI.
+- **Layout effect:** none expected (default equals previous implicit default); to be confirmed by `tools/verify_phase2.sh` and CI.
+- **Not ported (decision recorded):** Gold's `separate` scope value; the same placement is available via `h2-title-orn-mode`.
+- **Still open from the Gold-only list:** heading dividers H3-H6 (`heading-divider-h3..h6`, includes the Gold `194f19c` infinite-loop fix, which only exists inside that feature) and shaar dividers (`shaar-main-divider`, `shaar-sub-divider`).
+
 ## 4B — Header fixes: `same_as_even` and `hdr-h1-title-mode`
 - **What 1 (bug):** the UI offers `same_as_even` for the odd-page header slots, but the engine did not resolve it, so the slot rendered empty (found by comparing with Gold, which resolved it). It now resolves to the verso (even-page) type of the same column. A `same_as_even` / `same_as_odd` cycle leaves the slot empty. Only active with `hdr-distinct-even-odd`.
 - **What 2 (setting, no behaviour change by default):** new `hdr-h1-title-mode` = `full` (default, current behaviour: whole H1 text in the header) | `main` (only the part before the first dash, Gold's `extractH1TitleMain`). **Why a setting:** the two source lines recorded opposite user instructions (Gold worklog: header must show only titleMain; Green worklog / code comment: header must show the full part name). This is an editorial decision that is not mine to make; **open question for the editor: which default?**
