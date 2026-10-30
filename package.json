@@ -8,9 +8,10 @@
     "audit:geometry:long": "node tools/geometry-audit-cli.js --input ./very_long_test_text.txt --timeout-ms 900000 --report ./artifacts/geometry-audit.json --summary ./artifacts/geometry-audit-summary.md",
     "test:settings": "node tests/settings-wiring.test.js",
     "test:header": "node tests/header-settings.test.js",
-    "test": "node tests/settings-consistency.test.js && node tests/settings-wiring.test.js && node tests/header-settings.test.js && node tests/h2-ornament-scope.test.js",
+    "test": "node tests/settings-consistency.test.js && node tests/settings-wiring.test.js && node tests/header-settings.test.js && node tests/h2-ornament-scope.test.js && node tests/heading-divider.test.js",
     "test:consistency": "node tests/settings-consistency.test.js",
-    "test:h2scope": "node tests/h2-ornament-scope.test.js"
+    "test:h2scope": "node tests/h2-ornament-scope.test.js",
+    "test:dividers": "node tests/heading-divider.test.js"
   },
   "devDependencies": {
     "playwright": "1.55.0"

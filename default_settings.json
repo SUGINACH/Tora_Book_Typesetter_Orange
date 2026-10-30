@@ -246,5 +246,9 @@
   "detailed-toc-count-numbering": true,
   "detailed-toc-show-numbering": true,
   "hdr-h1-title-mode": "full",
-  "h2-orn-scope": "both"
+  "h2-orn-scope": "both",
+  "heading-divider-h3": "none",
+  "heading-divider-h4": "none",
+  "heading-divider-h5": "none",
+  "heading-divider-h6": "none"
 }

@@ -160,6 +160,26 @@ function getSectionDividerHTML(type) {
     return `<div class="sec-divider-wrap" style="grid-column: 3 / 6; text-align: center; margin: 16px auto 6px auto; display:flex; justify-content:center; align-items:center; ${dimStyle}">${content}</div>`;
 }
 
+/* [חדש] עיטור הפרדה בין קטעי כותרות מאותה רמה.
+   גרסה פשוטה של getSectionDividerHTML — בלי grid-column, עם margin קטן יותר.
+   [תיקון] widthPercent — אחוז מרוחב הטור (40% כברירת מחדל). העיטור מקבל max-width
+   בלבד, כדי שלא יהיה ענק. */
+function getHeadingDividerHTML(type, widthPercent) {
+    if (!type || type === 'none') return '';
+    const wp = widthPercent || 40;
+    const dimStyle = `max-width: ${wp}%; `;
+
+    let content = '';
+    if (SECTION_DIVIDERS[type]) {
+        // הסר את ה-grid-column וה-margin מהתוכן הפנימי
+        content = SECTION_DIVIDERS[type].replace(/grid-column: 3 \/ 6;\s*/g, '').replace(/margin: 16px auto 6px auto;\s*/g, '');
+    } else if (EXTERNAL_ALL_ORNAMENTS[type]) {
+        content = EXTERNAL_ALL_ORNAMENTS[type];
+    }
+    if (!content) return '';
+    return `<div class="heading-divider-wrap" style="text-align: center; margin: 10px auto; display:flex; justify-content:center; align-items:center; ${dimStyle}">${content}</div>`;
+}
+
 function getHeadingOrnamentHTML(type, isTop = false, isH2 = true) {
     if (!type || type === 'none') return '';
     const flipStyle = isTop ? 'transform: scaleY(-1);' : '';

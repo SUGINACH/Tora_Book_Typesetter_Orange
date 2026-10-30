@@ -2,6 +2,17 @@
 
 Entries are newest first. Every change records: what, why, how it was verified, and what was NOT verified.
 
+## 4D — Heading dividers H3-H6 (`heading-divider-h3..h6`), ported from Gold (84bb0c2, 194f19c)
+- **What:** an ornament is inserted before a heading of level 3-6 when a previous heading of the SAME level was seen and no higher-level heading came in between. UI block, defaults (`none`), bridge whitelist, JSON population (`app.js`) and `getHeadingDividerHTML` (`decorations.js`) added. Default `none` = no layout change.
+- **Differences from Gold (deliberate):**
+  1. One helper (`tryInsertHeadingDivider`) used at all three insertion sites; it **measures before inserting** (Gold's `194f19c` only did this at one site, which is the endless-loop fix).
+  2. No divider at the top of a column / empty flow (nothing precedes it, and it removes the only way to loop: divider + heading overflowing an empty column forever).
+  3. `lastHeadingSeen` state is **restored** when a heading is rolled back and when a page is rebuilt (`pageState`); Gold left it stale, so a re-placed heading saw itself as its own predecessor.
+  4. A removed divider is not counted as a rolled-back token (Gold added it to the token count).
+- **Test-first:** `tests/heading-divider.test.js` (9 checks): before 6/9, after 9/9. Covers first-of-level, reset by a higher level, only configured levels, no orphan divider at a column end, and termination on a real chapter (ch03, 18 H3/H4) with all four levels on.
+- **Layout effect:** none by default. Lab full document, dividers off: 639 pages, 39 issues, `verify_phase2` PASS. **Stress run with dividers h3-h6 on** (`pyramid`): terminates, 663 pages, 56 issues (0 high / 17 medium / 39 low): more pages and more findings are expected because the dividers add height; no quality bar was set for that configuration.
+- **Not verified:** visual appearance of the dividers (no screenshot reviewed), the other built-in/JSON divider styles, interaction with `h3` side ornaments, CI results (pending at commit time).
+
 ## 4C — `h2-orn-scope` reachable from the UI + settings consistency test
 - **Finding:** the engine already implements H2 ornament scopes (`both`, `siman_only`, `title_only`) and `renderer-bridge.js` accepts `h2-orn-scope`, but there was no control in `index.html` and no default in `default_settings.json`: the feature existed and could not be reached. Gold had the control (plus a 4th option `separate`, which here is covered by the existing `h2-title-orn-mode` = top/bottom).
 - **What:** added the `h2-orn-scope` select (3 options) and the default `both` (equal to the engine's built-in default, so layouts do not change).

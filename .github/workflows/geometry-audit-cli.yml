@@ -34,6 +34,8 @@ jobs:
         run: node tests/settings-consistency.test.js
       - name: H2 ornament scope test
         run: node tests/h2-ornament-scope.test.js
+      - name: Heading divider test
+        run: node tests/heading-divider.test.js
       - name: Check CLI syntax
         run: node --check tools/geometry-audit-cli.js
       - name: Check browser script syntax

@@ -874,14 +874,70 @@ function resolveParagraphSplit(totalLines, fitLines) {
     return 0;
 }
 
-/* מסיר מסוף הטור את הכותרות הרצופות (כדי שיעברו יחד עם הפסקה שלא נכנסה). מחזיר כמה הוסרו */
+/* ---- עיטורי הפרדה בין כותרות מאותה רמה (heading-divider-h3..h6) ----
+   עיטור מוכנס לפני כותרת רמה 3-6 כשכבר נראתה כותרת קודמת מאותה רמה ולא הופיעה בינתיים כותרת גבוהה יותר.
+   המצב (seen) נשמר ברמת המסמך. הוא משוחזר כשכותרת מוסרת (rollback) וגם כשעמוד נבנה מחדש (pageState),
+   אחרת כותרת שהוסרה ונבנית שוב "תראה" את עצמה כקודמת ותקבל עיטור מיותר.
+   נגזר מ-Gold (84bb0c2, 194f19c); ההבדלים: מדידה מראש בכל אתרי ההוספה (ב-Gold רק באחד), בלי עיטור בראש טור/עמוד ריק,
+   ועיטור שהוסר לא נספר כאסימון ב-rollback. */
+let headingDividerState = { seen: {}, before: new Map() };
+function resetHeadingDividerState() {
+    headingDividerState = { seen: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null, 7: null }, before: new Map() };
+}
+resetHeadingDividerState();
+function noteHeadingSeen(level, id) {
+    const s = headingDividerState, key = String(id);
+    if (!s.before.has(key)) s.before.set(key, Object.assign({}, s.seen));
+    s.seen[level] = id;
+    for (let l = level + 1; l <= 7; l++) s.seen[l] = null;
+}
+function forgetHeadingSeen(id) {
+    const s = headingDividerState, key = String(id), snap = s.before.get(key);
+    if (snap) { Object.assign(s.seen, snap); s.before.delete(key); }
+}
+function maybeGetHeadingDivider(level) {
+    if (!headingDividerState.seen[level]) return '';
+    if (level < 3 || level > 6) return '';
+    const dividerType = document.getElementById('heading-divider-h' + level)?.value || 'none';
+    if (dividerType === 'none') return '';
+    if (typeof getHeadingDividerHTML !== 'function') return '';
+    return getHeadingDividerHTML(dividerType, 40);
+}
+/* מכניס את העיטור לסוף container רק אם הוא נדרש, יש משהו לפניו, והוא נכנס (fits(גובה) מחזיר true). מחזיר את האלמנט או null. */
+function tryInsertHeadingDivider(container, level, fits) {
+    const html = maybeGetHeadingDivider(level);
+    if (!html || container.children.length === 0) return null;
+    const holder = document.createElement('div');
+    holder.innerHTML = html;
+    const el = holder.firstElementChild;
+    if (!el) return null;
+    el.style.visibility = 'hidden';
+    container.appendChild(el);
+    const h = el.offsetHeight + 20; // 20 = שוליים
+    container.removeChild(el);
+    if (!fits(h)) return null;
+    el.style.visibility = '';
+    container.appendChild(el);
+    return el;
+}
+function removeInsertedDivider(container, el) {
+    if (el && el.parentNode === container) container.removeChild(el);
+}
+
+/* מסיר מסוף הטור את הכותרות הרצופות (כדי שיעברו יחד עם הפסקה שלא נכנסה). מחזיר כמה כותרות הוסרו (עיטורי הפרדה אינם נספרים) */
 function rollbackTrailingHeadings(col) {
     let n = 0;
     let last = col.lastElementChild;
     while (last && /(^|\s)title-level-/.test(last.className)) {
+        const tid = last.getAttribute('data-token-id');
         col.removeChild(last);
+        if (tid) forgetHeadingSeen(tid);
         n++;
         last = col.lastElementChild;
+        if (last && last.classList.contains('heading-divider-wrap')) {
+            col.removeChild(last);
+            last = col.lastElementChild;
+        }
     }
     return n;
 }
@@ -4270,6 +4326,7 @@ function typesetDocumentCore() {
     let currentH2Title = '';
     let currentH3Title = '';
     let currentH4Title = '';
+    resetHeadingDividerState();
 
     const bookTitle = document.getElementById('inp-book-title')?.value || "ספר";
     const showMainShaar = document.getElementById('show-main-shaar')?.checked ?? true;
@@ -4432,6 +4489,7 @@ function typesetDocumentCore() {
             currentH2Title = h2Text;
             headingPageMap[h2Id] = toGematria(pageIndex);
             resetNoteCounterIfNeeded('footnote', 'siman');
+            if (sec.hToken) noteHeadingSeen(sec.hToken.level, sec.hToken.id);
         }
 
         let secTokens = sec.tokens.slice();
@@ -4467,6 +4525,7 @@ function typesetDocumentCore() {
                 fnQ: footnoteQueueForPage.length, enQ: endnoteQueueForPart.length,
                 cFn: noteCounters.footnote, cEn: noteCounters.endnote, uid: noteUidCounter,
                 h1: currentH1Title, h2: currentH2Title, h3: currentH3Title, h4: currentH4Title,
+                hs: Object.assign({}, headingDividerState.seen),
                 prevPageEl
             };
 
@@ -4663,6 +4722,7 @@ function typesetDocumentCore() {
                 noteUidCounter = pageState.uid;
                 currentH1Title = pageState.h1; currentH2Title = pageState.h2;
                 currentH3Title = pageState.h3; currentH4Title = pageState.h4;
+                Object.assign(headingDividerState.seen, pageState.hs);
                 prevPageEl = pageState.prevPageEl;
                 pageReserveFloor = reserve;
                 redoAttempts++;
@@ -4735,6 +4795,7 @@ function typesetDocumentCore() {
                     let currentTok = pendingWordTokens ? pendingWordTokens.token : secTokens[tokenIndex];
 
                     if (currentTok.type.startsWith('h')) {
+                        const insertedDivider = tryInsertHeadingDivider(targetCol, currentTok.level, h => targetCol.scrollHeight + h <= remPageHeight - reservedNow());
                         if (currentTok.level === 3) currentH3Title = currentTok.text;
                         if (currentTok.level === 4) currentH4Title = currentTok.text;
                         const hElem = document.createElement('div');
@@ -4752,10 +4813,12 @@ function typesetDocumentCore() {
 
                         if (targetCol.scrollHeight > (remPageHeight - reservedNow()) && targetCol.children.length > 1) {
                             targetCol.removeChild(hElem);
+                            removeInsertedDivider(targetCol, insertedDivider);
                             tokenIndex -= rollbackTrailingHeadings(targetCol);
                             break;
                         }
                         headingPageMap[currentTok.id] = toGematria(pageIndex - 1);
+                        noteHeadingSeen(currentTok.level, currentTok.id);
                         tokenIndex++;
                         continue;
                     }
@@ -4863,6 +4926,7 @@ function typesetDocumentCore() {
                 if (peekMode === 'span_1col' && !pendingWordTokens) {
                     const currentAvailH = remPageHeight - reservedNow();
                     if (currentAvailH < 60) break;
+                    const insertedSpanDivider = tryInsertHeadingDivider(pageLayout.bodyFlow, peekTok.level, h => currentAvailH - h >= 60);
                     if (peekTok.level === 3) currentH3Title = peekTok.text;
                     if (peekTok.level === 4) currentH4Title = peekTok.text;
                     const spanBlock = document.createElement('div');
@@ -4910,10 +4974,12 @@ function typesetDocumentCore() {
                     const spanFree = Math.max(0, flowBottom - spanTop) - reservedNow();
                     if (spanHeight > spanFree || (pageBodyHasContent && spanFree - spanHeight <= 45)) {
                         pageLayout.bodyFlow.removeChild(spanBlock);
+                        removeInsertedDivider(pageLayout.bodyFlow, insertedSpanDivider);
                         break;
                     }
 
                     headingPageMap[peekTok.id] = toGematria(pageIndex - 1);
+                    noteHeadingSeen(peekTok.level, peekTok.id);
                     remPageHeight = Math.max(0, flowBottom - spanBlock.getBoundingClientRect().bottom);
                     tokenIndex++;
                     continue;
@@ -4980,6 +5046,7 @@ function typesetDocumentCore() {
                         }
 
                         if (currentTok.type.startsWith('h')) {
+                            const insertedDivider = tryInsertHeadingDivider(targetCol, currentTok.level, h => targetCol.scrollHeight + h <= remPageHeight - reservedNow());
                             if (currentTok.level === 3) currentH3Title = currentTok.text;
                             if (currentTok.level === 4) currentH4Title = currentTok.text;
                             const hElem = document.createElement('div');
@@ -4998,6 +5065,7 @@ function typesetDocumentCore() {
 
                             if (targetCol.scrollHeight > (remPageHeight - reservedNow()) && targetCol.children.length > 1) {
                                 targetCol.removeChild(hElem);
+                                removeInsertedDivider(targetCol, insertedDivider);
                                 tokenIndex -= rollbackTrailingHeadings(targetCol);
                                 break;
                             }
@@ -5005,6 +5073,7 @@ function typesetDocumentCore() {
                             if (!headingPageMap[currentTok.id]) {
                                 headingPageMap[currentTok.id] = toGematria(pageIndex - 1);
                             }
+                            noteHeadingSeen(currentTok.level, currentTok.id);
                             tokenIndex++;
                             continue;
                         }
