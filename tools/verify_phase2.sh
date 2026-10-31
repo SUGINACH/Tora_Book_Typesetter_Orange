@@ -4,11 +4,13 @@
 set -uo pipefail
 D="$1"; shift || true; cd "$D"
 mkdir -p artifacts
+rm -f artifacts/phase2.json artifacts/phase2.md artifacts/phase2.log   # never read a stale report
 node tools/geometry-audit-cli.js --input very_long_test_text.txt --fail-on none --step-audit-disabled --timeout-ms 3000000 \
   --report artifacts/phase2.json --summary artifacts/phase2.md "$@" > artifacts/phase2.log 2>&1
 rc=$?
 python3 - "$rc" <<'PY'
-import json,sys,collections
+import json,sys,collections,os
+if not os.path.exists('artifacts/phase2.json'): print('FAIL: no report produced (cli exit code %s)' % sys.argv[1]); sys.exit(1)
 rc=int(sys.argv[1]); E=json.load(open('expected_baseline.json'))['default_config']
 d=json.load(open('artifacts/phase2.json',encoding='utf-8')); iss=d['audit']['issues']
 c=collections.Counter(i['severity'] for i in iss); k=dict(collections.Counter(i['kind'] for i in iss))

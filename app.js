@@ -1359,6 +1359,9 @@ async function loadExternalJSONAssets() {
                     for (let lvl = 3; lvl <= 6; lvl++) {
                         appendOptionToSelect('heading-divider-h' + lvl, item.id, item.name, 'עיטורי הפרדה מ-JSON', 'h' + lvl + '-divider-json-optgroup');
                     }
+                    // עיטורי שער ראשי ומשנה (מאותו קובץ JSON)
+                    appendOptionToSelect('shaar-main-divider', item.id, item.name, 'עיטורים מ-JSON', 'shaar-main-divider-json-optgroup');
+                    appendOptionToSelect('shaar-sub-divider', item.id, item.name, 'עיטורים מ-JSON', 'shaar-sub-divider-json-optgroup');
                 } else if (asset.type === 'note_rule') {
                     registerExternalNoteRule(item.id, item.svg);
                     appendOptionToSelect('note-rule-style', item.id, item.name, 'מפרידים מ-JSON', 'note-rules-json-optgroup');

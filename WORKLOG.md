@@ -2,6 +2,13 @@
 
 Entries are newest first. Every change records: what, why, how it was verified, and what was NOT verified.
 
+## 4E — Shaar dividers (`shaar-main-divider`, `shaar-sub-divider`), ported from Gold
+- **What:** the ornament on the main title page and on the sub title page can be replaced by a divider asset from `section_dividers.json`; `none` (default) keeps the built-in SVG (byte-identical markup, now emitted through a variable). UI block, defaults, bridge whitelist and JSON population added.
+- **Test-first:** `tests/shaar-divider.test.js` (6 checks): before 4/6 (both replacement checks fail), after 6/6. Runs in CI.
+- **Layout effect:** none by default. Full document (lab, Chromium 140.0.7339.0, offline, fresh run completed this time): 639 pages, 39 issues (0/11/28), same kinds as the baseline.
+- **Process note:** two earlier attempts to re-verify the baseline hit the sandbox time limit; a script printed PASS from a stale report file. That PASS was discarded. Verification scripts must write to a fresh output path or delete the old one first.
+- **Not verified:** visual appearance of the replaced ornaments; the back title page has no divider setting (same as Gold).
+
 ## 4D — Heading dividers H3-H6 (`heading-divider-h3..h6`), ported from Gold (84bb0c2, 194f19c)
 - **What:** an ornament is inserted before a heading of level 3-6 when a previous heading of the SAME level was seen and no higher-level heading came in between. UI block, defaults (`none`), bridge whitelist, JSON population (`app.js`) and `getHeadingDividerHTML` (`decorations.js`) added. Default `none` = no layout change.
 - **Differences from Gold (deliberate):**
