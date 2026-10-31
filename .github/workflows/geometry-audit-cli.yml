@@ -38,6 +38,8 @@ jobs:
         run: node tests/heading-divider.test.js
       - name: Shaar divider test
         run: node tests/shaar-divider.test.js
+      - name: Renderer assets test (JSON ornaments are loaded by the renderer)
+        run: node tests/renderer-assets.test.js
       - name: Check CLI syntax
         run: node --check tools/geometry-audit-cli.js
       - name: Check browser script syntax

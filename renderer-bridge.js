@@ -133,6 +133,18 @@
         }
     }
 
+    // נכסי JSON נטענים ב-window.onload של app.js (מצב renderer). עימוד חייב לחכות להם, גם אם ההודעה הגיעה מוקדם.
+    let assetsDoneResolve;
+    window.__rendererAssetsReady = new Promise(resolve => { assetsDoneResolve = resolve; });
+    window.__rendererAssetsDone = () => { window.__rendererAssetsLoaded = true; assetsDoneResolve(); };
+    const waitForAssets = () => Promise.race([
+        window.__rendererAssetsReady,
+        new Promise(resolve => setTimeout(() => {
+            if (!window.__rendererAssetsLoaded) console.warn('renderer assets were not loaded within 30s; typesetting without them');
+            resolve();
+        }, 30000))
+    ]);
+
     // האזנה להודעות מהדף הראשי
     window.addEventListener('message', async function(e) {
         const msg = e.data;
@@ -140,6 +152,7 @@
 
         if (msg.type === 'typeset') {
             try {
+                await waitForAssets();
                 applySettings(msg.settings);
                 applyText(msg.text);
                 // Update CSS variables before font preflight so settings-selected families are visible.

@@ -2849,8 +2849,16 @@ window.renderFnAuditResults = renderFnAuditResults;
    15. אירוע טעינת הדף הראשי (Window Onload)
    ========================================================================== */
 window.onload = async function() {
-    // במצב renderer (iframe) — דלג על אתחול UI
-    if (window.__isRenderer) return;
+    // במצב renderer (iframe / renderer.html) — טען נכסי JSON (עיטורים, מפרידים, שערים) אבל דלג על אתחול UI.
+    // [תיקון] קודם, הרנדרר חזר מיד ולא טען את קבצי ה-JSON, והדף הראשי מעביר אליו רק טקסט והגדרות:
+    // עיטור שנבחר מ-JSON (כמו orn_ud_022) לא היה זמין ולא הופיע בעימוד. נגזר מ-Gold bd9cd15.
+    // renderer-bridge.js ממתין ל-__rendererAssetsReady לפני כל עימוד, כך שאין תלות בסדר ההודעות.
+    if (window.__isRenderer) {
+        try { await loadExternalJSONAssets(); } catch (e) { console.warn('loadExternalJSONAssets (renderer):', e); }
+        try { await loadFolderAssetsAndThemes(); } catch (e) { console.warn('loadFolderAssetsAndThemes (renderer):', e); }
+        if (typeof window.__rendererAssetsDone === 'function') window.__rendererAssetsDone();
+        return;
+    }
 
     initFontPickers();
     // טען הגדרות ברירת מחדל מ-default_settings.json דרך settings-manager.js

@@ -2,6 +2,13 @@
 
 Entries are newest first. Every change records: what, why, how it was verified, and what was NOT verified.
 
+## 4F — The renderer loads the JSON ornament assets (port of Gold bd9cd15, with a proper wait)
+- **Bug:** the UI window sends the renderer only text and settings, but `window.onload` in `app.js` returned immediately in renderer mode, so the renderer never loaded `ornaments_up_down.json`, `section_dividers.json`, headers, shaar designs, etc. An ornament/divider chosen from the JSON lists in the UI was not available in the renderer and silently did not render (`ORNAMENTS_UD` had only the 4 built-ins). The same applies to `renderer.html` as used by the CLI.
+- **Fix:** in renderer mode `onload` loads `loadExternalJSONAssets()` and `loadFolderAssetsAndThemes()` and then calls `window.__rendererAssetsDone()`. **Difference from Gold:** Gold announces `renderer-ready` a second time after loading, but the bridge already announced it at script start, so a typeset message could still run before the assets. Here `renderer-bridge.js` creates `window.__rendererAssetsReady` early and the `typeset` handler awaits it (30 s safety timeout with a warning).
+- **Test-first:** `tests/renderer-assets.test.js` (6 checks, typeset is posted right after load, so it also proves the wait): before 2/6, after 6/6. Runs in CI.
+- **Layout effect with default settings:** none. Fresh full-document run (lab, Chromium 140.0.7339.0, offline): 639 pages, 39 issues (0/11/28), same kinds, no console errors.
+- **Not verified:** the actual UI (index.html + iframe) was not opened in a browser; the order of messages there was reasoned from the code. The CI ornament configuration may now resolve JSON ids that previously did nothing; CI will show whether its counts change.
+
 ## 4E — Shaar dividers (`shaar-main-divider`, `shaar-sub-divider`), ported from Gold
 - **What:** the ornament on the main title page and on the sub title page can be replaced by a divider asset from `section_dividers.json`; `none` (default) keeps the built-in SVG (byte-identical markup, now emitted through a variable). UI block, defaults, bridge whitelist and JSON population added.
 - **Test-first:** `tests/shaar-divider.test.js` (6 checks): before 4/6 (both replacement checks fail), after 6/6. Runs in CI.
