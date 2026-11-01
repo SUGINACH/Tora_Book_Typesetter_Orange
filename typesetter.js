@@ -586,14 +586,17 @@ function resolveHeaderAlign(align, slot) {
     return align;
 }
 
-/* hdr-h1-title-mode: 'full' (ברירת מחדל) = הטקסט המלא של כותרת 1 בכותרת העליונה;
-   'main' = רק החלק שלפני המקף הראשון (titleMain, כמו ב-renderSubShaar).
-   שתי ההתנהגויות נדרשו בשתי שורות הפיתוח (Green: מלא, Gold: titleMain), ולכן זו הגדרה ולא החלפה. */
+/* hdr-h1-title-mode: 'main' (ברירת מחדל, הוכרע על ידי העורך) = רק החלק שלפני המקף הראשון (titleMain, כמו ב-renderSubShaar);
+   'full' = הטקסט המלא של כותרת 1 בכותרת העליונה. שתי שורות הפיתוח תיעדו הוראות הפוכות, ולכן זו הגדרה. */
 function extractH1TitleMain(text) {
     if (!text) return '';
     text = text.trim();
     if (!/[-–—]/.test(text)) return text;
     return text.split(/[-–—]/)[0].trim();
+}
+function h1TitleForHeader(text) {
+    const mode = document.getElementById('hdr-h1-title-mode')?.value || 'main';
+    return mode === 'full' ? text : extractH1TitleMain(text);
 }
 
 /* [חדש] בונה את HTML של פס הכותרת העליונה (שלוש עמודות) לעמוד לפי כל הגדרות הכותרות העליונות:
@@ -4417,8 +4420,7 @@ function typesetDocumentCore() {
             // [תיקון] שם החלק לכותרת העליונה = הטקסט המלא של כותרת 1 (לא רק החלק לפני המקף).
             // קודם היה: sec.token.text.split(/[-–—]/)[0].trim() — שלקח רק את titleMain (למשל "חלק א")
             // במקום השם המלא ("חלק א - הלכות שבת"). הכותרת העליונה צריכה להציג את שם החלק המלא.
-            currentH1Title = (document.getElementById('hdr-h1-title-mode')?.value === 'main')
-                ? extractH1TitleMain(sec.token.text) : sec.token.text;
+            currentH1Title = h1TitleForHeader(sec.token.text);
             headingPageMap[sec.token.id] = toGematria(pageIndex);
 
             if (enableDetailedTOC) {
@@ -4470,8 +4472,7 @@ function typesetDocumentCore() {
         // קודם, currentH1Title התעדכן רק במקרה sub_shaar (שורה 3338). במקרה הרגיל (new_page_1col / new_page_2col),
         // כותרת level 1 לא עודכנה ב-currentH1Title, ולכן הכותרת העליונה שמוגדרת כ-h1 הייתה ריקה.
         if (sec.isNewPage && sec.hToken && sec.hToken.level === 1) {
-            currentH1Title = (document.getElementById('hdr-h1-title-mode')?.value === 'main')
-                ? extractH1TitleMain(sec.hToken.text) : sec.hToken.text;
+            currentH1Title = h1TitleForHeader(sec.hToken.text);
         }
 
         let simanLabel = '';

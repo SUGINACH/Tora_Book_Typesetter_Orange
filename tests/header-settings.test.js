@@ -3,7 +3,7 @@
 /*
  * Header behaviour test: settings offered by the UI for the running header must have an effect.
  *  - same_as_even (primary/odd-page slot) must resolve to the verso (even-page) type instead of rendering an empty slot.
- *  - hdr-h1-title-mode: 'full' keeps the whole H1 text in the header (default), 'main' keeps only the part before the first dash.
+ *  - hdr-h1-title-mode: 'main' (default, decided by the editor) keeps only the part before the first dash, 'full' keeps the whole H1 text.
  * Offline; fails on any external request.   Usage: node tests/header-settings.test.js
  */
 const fs = require('fs');
@@ -47,13 +47,12 @@ const first = (rows, parity) => rows.find(r => r.parity === parity);
     const c = await headers(browser, baseUrl, text, { ...distinct, 'hdr-r-type': 'same_as_even', 'hdr-verso-r-type': 'same_as_odd' }, external);
     check('same_as_even/same_as_odd cycle renders an empty slot without error', !!first(c, 'odd') && first(c, 'odd').r === '', `odd R='${first(c, 'odd')?.r}'`);
 
-    // 4. hdr-h1-title-mode: default 'full' keeps the dash part, 'main' removes it.
-    const full = await headers(browser, baseUrl, text, {}, external);
-    const main = await headers(browser, baseUrl, text, { 'hdr-h1-title-mode': 'main' }, external);
-    const fullC = full.map(r => r.c).find(x => x.includes('הקדמות')) || '';
-    const mainC = main.map(r => r.c).find(x => x.includes('הקדמות')) || '';
-    check("hdr-h1-title-mode default shows the full H1 text", /הקדמות וכללים\s*-\s*יום השבת/.test(fullC), `C='${fullC}'`);
-    check("hdr-h1-title-mode='main' keeps only the part before the first dash", mainC.includes('הקדמות וכללים') && !/-\s*יום/.test(mainC), `C='${mainC}'`);
+    // 4. hdr-h1-title-mode: default 'main' keeps only the part before the first dash; 'full' keeps the dash part.
+    const dflt = await headers(browser, baseUrl, text, {}, external);
+    const full = await headers(browser, baseUrl, text, { 'hdr-h1-title-mode': 'full' }, external);
+    const pick = rows => rows.map(r => r.c).find(x => x.includes('הקדמות')) || '';
+    check("hdr-h1-title-mode default shows only the part before the first dash", pick(dflt).includes('הקדמות וכללים') && !/-\s*יום/.test(pick(dflt)), `C='${pick(dflt)}'`);
+    check("hdr-h1-title-mode='full' shows the whole H1 text", /הקדמות וכללים\s*-\s*יום השבת/.test(pick(full)), `C='${pick(full)}'`);
     check('no external network requests', external.length === 0, external.slice(0, 3).join(', '));
   } catch (err) {
     check('test run completed', false, err.message);

@@ -2,6 +2,14 @@
 
 Entries are newest first. Every change records: what, why, how it was verified, and what was NOT verified.
 
+## 4H — Editor decisions applied, and the real UI tested end to end
+- **Decisions from the editor:** (1) the H1 text in the running header is only the part before the first dash: `hdr-h1-title-mode` now defaults to `main` (engine fallback and UI select both default to `main`; `full` stays selectable). (2) H2 ornament spacing stays as in this repo.
+- **UI end-to-end test (`tests/ui-e2e.test.js`, 15 checks, ~30 s):** loads the real `index.html` with its iframe renderer, served as static files exactly as GitHub Pages serves them (the site itself is not reachable from the build sandbox, so the same files are served locally). Verifies: the new selects are populated from JSON, typesetting through the UI renders pages, the header default and the `full` option, JSON ornaments and heading dividers chosen in the UI reach the iframe, no page/console errors, no external requests. Runs in CI.
+- **Two real defects found by that test and fixed:** (a) my 4F change called `initVisualPickers()` inside the renderer, which threw a (caught) TypeError because the renderer has hidden inputs, not `<select>`s; it is now guarded with `!window.__isRenderer`. (b) The test itself was racing the UI window's asynchronous JSON loading; it now waits for the biggest list.
+- **Observation, not a defect:** a JSON divider such as `ext_013_b_svg` is ~1,000 px tall and is refused by the pre-measurement (that refusal is exactly what prevents Gold's endless loop). 118 of 323 JSON dividers are near-square. Recorded in OPEN_QUESTIONS.
+- **Layout effect:** none. Fresh full-document run with the new default (`main` applied): 639 pages, 39 issues (0/11/28), same kinds as the baseline.
+- **Not verified:** the live GitHub Pages URL (blocked from the sandbox); visual look of the new UI controls (no screenshot reviewed).
+
 ## 4G — Housekeeping and open findings
 - **Case collision fixed:** the repo root had `WORKLOG.md` (this file) and Green's old `worklog.md`; names that differ only in case collide on Windows/macOS checkouts. Green's log moved to `docs/green-V23/worklog-green-V23.md` (history of that file is in the Green repo). A scan found no other case collisions (3,670 files).
 - **README rewritten** for this repo (it still described Green V23, listed Green's run URLs and the old 27/37 finding counts).

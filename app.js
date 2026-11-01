@@ -1404,7 +1404,8 @@ async function loadExternalJSONAssets() {
         appendOptionToSelect('active-theme-select', themeId, themeName, 'ערכות מאוחדות מ-JSON', 'json-themes-optgroup');
     });
 
-    initVisualPickers();
+    // בורר ויזואלי הוא רכיב ממשק בלבד: ברנדרר הבקרות הן שדות נסתרים ולא <select>, והקריאה זרקה TypeError (נתפס, אך רועש).
+    if (!window.__isRenderer) initVisualPickers();
 }
 
 async function loadFolderAssetsAndThemes() {
