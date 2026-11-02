@@ -2,6 +2,12 @@
 
 Entries are newest first. Every change records: what, why, how it was verified, and what was NOT verified.
 
+## 4I — Removed the duplicated font directory; scanned all fonts
+- **Finding:** `fonts/fonts/` held 1,759 files that are byte-identical (SHA-1, name by name) to `fonts/` (138.7 MB). It was inherited from Green and Gold. Nothing references it: the loader builds `url(fonts/<file>)` from `fonts/fonts.json`, whose entries are bare file names; a static search found only a comment and the string `fonts/fonts.json`.
+- **Change:** `git rm -r fonts/fonts`. The working tree and the GitHub Pages deployment shrink from ~277 MB to ~136 MB of fonts. Git history still contains the old blobs (history was not rewritten, to avoid force-pushing a repository others may have cloned).
+- **Verified:** the in-browser load scan of every font in `fonts/` gives the same result before and after (1,758 loaded fonts, same 4 failures); `ui-e2e` 15/15 and `settings-wiring` 10/10 after the removal. A full-document run was not repeated (default fonts are Google families and `Guttman Rashi`, none of them in the removed directory); CI runs it.
+- **Broken fonts found by the scan (also present in Green/Gold):** `Msjhl-Sub1-Regular.woff2`, `Msjhl-Sub2-Regular.woff2`, `Noam-Regular.woff2`, `Sticks-Regular.woff2` fail to decode in Chromium. They only matter if someone selects those fonts.
+
 ## 4H — Editor decisions applied, and the real UI tested end to end
 - **Decisions from the editor:** (1) the H1 text in the running header is only the part before the first dash: `hdr-h1-title-mode` now defaults to `main` (engine fallback and UI select both default to `main`; `full` stays selectable). (2) H2 ornament spacing stays as in this repo.
 - **UI end-to-end test (`tests/ui-e2e.test.js`, 15 checks, ~30 s):** loads the real `index.html` with its iframe renderer, served as static files exactly as GitHub Pages serves them (the site itself is not reachable from the build sandbox, so the same files are served locally). Verifies: the new selects are populated from JSON, typesetting through the UI renders pages, the header default and the `full` option, JSON ornaments and heading dividers chosen in the UI reach the iframe, no page/console errors, no external requests. Runs in CI.
