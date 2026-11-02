@@ -95,6 +95,15 @@ const TEXT = 'כותרת 1 מספר 1 - הקדמות וכללים - יום הש�
     const dividers = await frame().evaluate(() => document.querySelectorAll('.heading-divider-wrap').length);
     check('heading divider chosen from the UI list is rendered', dividers >= 1, `dividers: ${dividers} (id ${divId})`);
 
+    // ---- file:// is not supported (editor decision): opening index.html directly must say so, a local server must not
+    const httpBanner = await page.evaluate(() => { const b = document.getElementById('file-protocol-warning'); return !!b && getComputedStyle(b).display !== 'none'; });
+    check('over http the unsupported-file:// warning is hidden', httpBanner === false, `visible=${httpBanner}`);
+    const filePage = await browser.newPage();
+    await filePage.goto('file://' + path.join(root, 'index.html'), { waitUntil: 'domcontentloaded', timeout: 60000 });
+    const fileBanner = await filePage.evaluate(() => { const b = document.getElementById('file-protocol-warning'); return b ? { shown: getComputedStyle(b).display !== 'none', text: b.textContent.trim().slice(0, 60) } : null; });
+    await filePage.close();
+    check('opened as file:// the page shows the "local server only" warning', !!fileBanner && fileBanner.shown, JSON.stringify(fileBanner));
+
     check('no page errors', pageErrors.length === 0, pageErrors.slice(0, 3).join(' | '));
     check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
     check('no external network requests', external.length === 0, external.slice(0, 3).join(', '));

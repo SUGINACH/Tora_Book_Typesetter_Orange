@@ -18,7 +18,7 @@
 
 ## הרצה מקומית
 
-נדרשים Node.js 22 ו־npm. גרסת Playwright מוצמדת (`1.55.0`) ב־`package-lock.json`.
+**האפליקציה נתמכת רק דרך שרת מקומי** (למשל `python -m http.server 8000` ואז `http://localhost:8000/index.html`); פתיחה ישירה כקובץ (`file://`) אינה נתמכת, והדף יציג אזהרה. נדרשים Node.js 22 ו־npm. גרסת Playwright מוצמדת (`1.55.0`) ב־`package-lock.json`.
 
 ```bash
 npm ci

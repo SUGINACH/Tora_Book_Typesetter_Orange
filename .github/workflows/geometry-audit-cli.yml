@@ -42,6 +42,10 @@ jobs:
         run: node tests/renderer-assets.test.js
       - name: UI end-to-end test (index.html + iframe, as served by GitHub Pages)
         run: node tests/ui-e2e.test.js
+      - name: Chapter-end balance test
+        run: node tests/chapter-end.test.js
+      - name: Fonts test (every font decodes)
+        run: node tests/fonts.test.js
       - name: Check CLI syntax
         run: node --check tools/geometry-audit-cli.js
       - name: Check browser script syntax

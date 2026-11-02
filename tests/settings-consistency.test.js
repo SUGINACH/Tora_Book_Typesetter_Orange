@@ -17,8 +17,7 @@ const EXEMPT = {
   'gtoc-shows': 'TOC levels are checkbox classes in the UI (.gtoc-show), delivered as a comma-separated list',
   'gtoc-groups': 'TOC levels are checkbox classes in the UI (.gtoc-grp), delivered as a comma-separated list',
   'dtoc-shows': 'TOC levels are checkbox classes in the UI (.dtoc-show), delivered as a comma-separated list',
-  'dtoc-groups': 'TOC levels are checkbox classes in the UI (.dtoc-grp), delivered as a comma-separated list',
-  'balance-chapter-end': 'engine option with no UI and an in-code default; kept as is until the editor decides whether it needs a control'
+  'dtoc-groups': 'TOC levels are checkbox classes in the UI (.dtoc-grp), delivered as a comma-separated list'
 };
 
 const bridge = read('renderer-bridge.js');

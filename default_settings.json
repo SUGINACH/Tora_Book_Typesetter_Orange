@@ -252,5 +252,6 @@
   "heading-divider-h5": "none",
   "heading-divider-h6": "none",
   "shaar-main-divider": "none",
-  "shaar-sub-divider": "none"
+  "shaar-sub-divider": "none",
+  "balance-chapter-end": "balance"
 }

@@ -911,18 +911,6 @@
 }
 
 @font-face {
-    font-family: 'אם אס ג'יהנג קל תת-גופן 1 רגיל';
-    src: url('fonts/Msjhl-Sub1-Regular.woff2') format('woff2');
-    font-display: swap;
-}
-
-@font-face {
-    font-family: 'אם אס ג'יהנג קל תת-גופן 2 רגיל';
-    src: url('fonts/Msjhl-Sub2-Regular.woff2') format('woff2');
-    font-display: swap;
-}
-
-@font-face {
     font-family: 'אם אס יאהיי קל תת-גופן 1 רגיל';
     src: url('fonts/Msyhl-Sub1-Regular.woff2') format('woff2');
     font-display: swap;
@@ -4607,12 +4595,6 @@
 }
 
 @font-face {
-    font-family: 'מקלות רגיל';
-    src: url('fonts/Sticks-Regular.woff2') format('woff2');
-    font-display: swap;
-}
-
-@font-face {
     font-family: 'מר קומיקס רגיל';
     src: url('fonts/Mr-Comics-Regular.woff2') format('woff2');
     font-display: swap;
@@ -4717,12 +4699,6 @@
 @font-face {
     font-family: 'נוסטלגיה עב-אנ מודגש';
     src: url('fonts/Nostalgiahebeng-Bold.woff2') format('woff2');
-    font-display: swap;
-}
-
-@font-face {
-    font-family: 'נועם רגיל';
-    src: url('fonts/Noam-Regular.woff2') format('woff2');
     font-display: swap;
 }
 

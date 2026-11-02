@@ -2,6 +2,16 @@
 
 Entries are newest first. Every change records: what, why, how it was verified, and what was NOT verified.
 
+## 4K — `file://` warning and removal of 4 broken fonts (editor decisions 7 and 10)
+- **Q7 warning:** `index.html` shows a red banner ("local server only", with the exact `python -m http.server` command) when opened as `file://`; hidden over http. Tested in `tests/ui-e2e.test.js` (now 17 checks): before 16/17, after 17/17. README states the server-only requirement.
+- **Q10 broken fonts removed:** `Msjhl-Sub1-Regular`, `Msjhl-Sub2-Regular` (5.8 MB), `Noam-Regular`, `Sticks-Regular` deleted from `fonts/` and from `fonts/fonts.json` (1754 -> 1750 entries), `fonts-extended.json` (1315 -> 1311) and `fonts-extended.css` (4 `@font-face` blocks). `tests/fonts.test.js` (3 checks; listed and referenced fonts exist, every font file decodes in Chromium): before 2/3 (the 4 fonts), after 3/3; `fonts/` now has 1,754 loadable font files. Runs in CI.
+- **Not verified:** that none of the four fonts was used by a saved setting set outside this repo (names appear in no file here: checked with a repo-wide search).
+
+## 4J — Editor decisions on OPEN_QUESTIONS 4, 7, 8
+- **Q4 `balance-chapter-end`:** added the missing UI select ("איזון סוף־פרק": `balance` = default, `fill` = page-fill order) and the default `"balance"` in `default_settings.json` (equal to the engine's built-in behaviour: any value except `fill` balances). The exemption in `tests/settings-consistency.test.js` was removed, so the consistency test now covers this setting. `tests/chapter-end.test.js` (5 checks): before 3/5, after 5/5; it proves that `fill` really leaves the last block unbalanced and `balance` does not.
+- **Q7 `file://`:** not supported by decision (local server only). Patch B (`docs/prep/patches/B_*`) will not be applied. See the next entry for the user-facing warning.
+- **Q8 TOC coverage:** accepted as is.
+
 ## 4I — Removed the duplicated font directory; scanned all fonts
 - **Finding:** `fonts/fonts/` held 1,759 files that are byte-identical (SHA-1, name by name) to `fonts/` (138.7 MB). It was inherited from Green and Gold. Nothing references it: the loader builds `url(fonts/<file>)` from `fonts/fonts.json`, whose entries are bare file names; a static search found only a comment and the string `fonts/fonts.json`.
 - **Change:** `git rm -r fonts/fonts`. The working tree and the GitHub Pages deployment shrink from ~277 MB to ~136 MB of fonts. Git history still contains the old blobs (history was not rewritten, to avoid force-pushing a repository others may have cloned).

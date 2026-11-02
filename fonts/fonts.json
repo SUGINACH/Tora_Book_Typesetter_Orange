@@ -1060,16 +1060,6 @@
     "format": "woff2"
   },
   {
-    "family": "אם אס ג'יהנג קל תת-גופן 1 רגיל",
-    "file": "Msjhl-Sub1-Regular.woff2",
-    "format": "woff2"
-  },
-  {
-    "family": "אם אס ג'יהנג קל תת-גופן 2 רגיל",
-    "file": "Msjhl-Sub2-Regular.woff2",
-    "format": "woff2"
-  },
-  {
     "family": "אם אס יאהיי קל תת-גופן 1 רגיל",
     "file": "Msyhl-Sub1-Regular.woff2",
     "format": "woff2"
@@ -4810,11 +4800,6 @@
     "format": "woff2"
   },
   {
-    "family": "מקלות רגיל",
-    "file": "Sticks-Regular.woff2",
-    "format": "woff2"
-  },
-  {
     "family": "מר קומיקס רגיל",
     "file": "Mr-Comics-Regular.woff2",
     "format": "woff2"
@@ -5357,11 +5342,6 @@
   {
     "family": "נוסטלגיה עב-אנ מודגש",
     "file": "Nostalgiahebeng-Bold.woff2",
-    "format": "woff2"
-  },
-  {
-    "family": "נועם רגיל",
-    "file": "Noam-Regular.woff2",
     "format": "woff2"
   },
   {

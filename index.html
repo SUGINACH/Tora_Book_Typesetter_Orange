@@ -33,6 +33,11 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body class="tabs-not-ready">
+<!-- file:// אינו נתמך (החלטת עורך): ה-iframe של הרנדרר והגדרות הדפדפן דורשים מקור http. הפעלה דרך שרת מקומי בלבד. -->
+<div id="file-protocol-warning" role="alert" style="display:none; position:fixed; z-index:99999; top:0; left:0; right:0; padding:10px 16px; background:#b91c1c; color:#fff; font:600 14px/1.5 Arial, sans-serif; text-align:center; direction:rtl;">
+  האפליקציה נפתחה ישירות מקובץ (file://) וזה אינו נתמך. יש להפעיל שרת מקומי בתיקיית הפרויקט, למשל: <code style="direction:ltr; unicode-bidi:embed; background:rgba(0,0,0,.25); padding:1px 6px; border-radius:3px;">python -m http.server 8000</code> ולפתוח <code style="direction:ltr; unicode-bidi:embed; background:rgba(0,0,0,.25); padding:1px 6px; border-radius:3px;">http://localhost:8000/index.html</code>
+</div>
+<script>if (location.protocol === 'file:') document.getElementById('file-protocol-warning').style.display = 'block';</script>
   <!-- סרגל צד ראשי המפוצל לשני טורים: אזור טקסט + לוח הגדרות -->
   <div id="sidebar">
     <!-- טור 1: אזור הדבקת ועריכת הטקסט -->
@@ -1286,6 +1291,15 @@
                 <div class="inline-cfg-row"><label>מרחק תחתון (px):</label><input type="number" id="prop-mb" value="20" step="1" class="size-input"></div>
                 <div class="inline-cfg-row"><label>עליון כותרת 2:</label><input type="number" id="prop-mt-h2" value="20" step="1" class="size-input" title="מרחק עליון של זרימת התוכן בעמוד כותרת 2"></div>
                 <div class="inline-cfg-row"><label>מרווח כותרת 2:</label><input type="text" id="h2-top-distance" value="22%" class="size-input" style="width:55px;" title="מרחק הכותרת עצמה מקצה העמוד"></div>
+              </div>
+
+              <div class="panel-sub-header">סוף פרק</div>
+              <div class="inline-cfg-row">
+                <label title="קובע מה קורה בבלוק הדו־טורי האחרון של כל פרק">איזון סוף־פרק:</label>
+                <select id="balance-chapter-end" style="flex:1;" onchange="if (typeof typesetDocument === 'function') typesetDocument();">
+                  <option value="balance" selected="selected">כן — איזון שני הטורים בסוף הפרק</option>
+                  <option value="fill">לא — מילוי עמוד (ימין מלא ואז שמאל)</option>
+                </select>
               </div>
 
               <div class="panel-sub-header">קו מפריד אנכי בין הטורים</div>
