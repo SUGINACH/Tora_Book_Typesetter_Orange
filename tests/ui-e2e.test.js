@@ -81,7 +81,7 @@ const TEXT = 'כותרת 1 מספר 1 - הקדמות וכללים - יום הש�
     ]);
     const exportedPath = await htmlDownload.path();
     const exportedHtml = fs.readFileSync(exportedPath, 'utf8');
-    const exportedPageCount = (exportedHtml.match(/class=["'][^"']*\\ba4-page\\b[^"']*["']/g) || []).length;
+    const exportedPageCount = (exportedHtml.match(/class=["'][^"']*\ba4-page\b[^"']*["']/g) || []).length;
     check('HTML export downloads a standalone document containing the rendered iframe pages',
       exportedHtml.includes('<!DOCTYPE html>') && exportedPageCount === pages,
       `downloadedPages=${exportedPageCount}; iframePages=${pages}; bytes=${exportedHtml.length}`);
