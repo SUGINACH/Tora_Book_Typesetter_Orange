@@ -73,6 +73,19 @@ const TEXT = 'כותרת 1 מספר 1 - הקדמות וכללים - יום הש�
     await typeset({ 'h2-auto-siman': true });
     const pages = await frame().evaluate(() => document.querySelectorAll('.a4-page').length);
     check('typesetting through the UI renders pages in the iframe', pages >= 5, `pages=${pages}`);
+
+    // ---- rendered HTML export must read the book from the iframe via renderer-bridge
+    const [htmlDownload] = await Promise.all([
+      page.waitForEvent('download', { timeout: 30000 }),
+      page.click('#btn-export-html')
+    ]);
+    const exportedPath = await htmlDownload.path();
+    const exportedHtml = fs.readFileSync(exportedPath, 'utf8');
+    const exportedPageCount = (exportedHtml.match(/class=["'][^"']*\\ba4-page\\b[^"']*["']/g) || []).length;
+    check('HTML export downloads a standalone document containing the rendered iframe pages',
+      exportedHtml.includes('<!DOCTYPE html>') && exportedPageCount === pages,
+      `downloadedPages=${exportedPageCount}; iframePages=${pages}; bytes=${exportedHtml.length}`);
+
     const c1 = await headerC();
     check('default: header shows only the part of H1 before the first dash', c1.includes('הקדמות וכללים') && !/-\s*יום/.test(c1), `C='${c1}'`);
     await typeset({ 'hdr-h1-title-mode': 'full' });
