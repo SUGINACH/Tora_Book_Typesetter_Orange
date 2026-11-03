@@ -104,7 +104,7 @@ function updateGrid() {
     root.style.setProperty('--w-gap', (rawGap * scale) + '%');
     root.style.setProperty('--flow-mt', (document.getElementById('prop-mt')?.value || 20) + 'px');
     root.style.setProperty('--flow-mb', (document.getElementById('prop-mb')?.value || 20) + 'px');
-    root.style.setProperty('--flow-mt-h2', (document.getElementById('prop-mt-h2')?.value || 20) + 'px');
+    root.style.setProperty('--flow-mt-h2', (document.getElementById('prop-mt-h2')?.value || 0) + 'px');
 }
 
 /* משתני הגופן והגודל של טקסטי השערים בלבד */
@@ -735,7 +735,7 @@ function createPageLayout(container, h2Text, h2TokenId, pNum, h1Title, h2Title, 
     <div class="page-content-wrapper">
       ${headerGridHTML}
       <div class="page-body-flow ${h2Text ? 'h2-flow-page' : ''}">
-        ${h2Text ? `<div class="h2-spacer"></div><div class="title-level-2-standalone" ${h2TokenId !== undefined ? `data-token-id="${h2TokenId}" id="heading-tok-${h2TokenId}"` : ''}>${h2Text}</div>` : ''}
+        ${h2Text ? `<div class="h2-spacer"></div><div class="title-level-2-standalone${pageRole === 'h0Open' ? ' h0-opening-title' : ''}" ${h2TokenId !== undefined ? `data-token-id="${h2TokenId}" id="heading-tok-${h2TokenId}"` : ''}>${h2Text}</div>` : ''}
       </div>
       <div class="page-number-footer ${footerClass}">${showFooter ? framedPageNum : ''}</div>
     </div>

@@ -574,7 +574,7 @@ function renderSubShaar(container, token, themeId, pageIndex) {
     <div class="theme-bounded-content" data-shaar-type="sub" data-shaar-id="${shaarBoxId}" style="${boxStyle} justify-content:center;">
       ${getShaarBoxEditorHTML('sub')}
       <div class="sefer-label"></div>
-      <div class="book-title-main" style="font-size: 36pt;">${titleMain}</div>
+      <div class="book-title-main sub-shaar-title">${titleMain}</div>
       ${titleSub ? `
         ${subShaarOrnamentHTML}
         <div class="book-subtitle" style="font-size: 21pt;">${titleSub}</div>` : ''}

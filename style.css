@@ -867,6 +867,12 @@ body.tabs-not-ready #sidebar::before {
     margin: 10px 0 40px 0;
 }
 
+/* כותרת שער המשנה (כותרת 1 במצב "שער משנה נפרד"): גופן וגודל מההגדרות f-h1 / s-h1 (ברירת מחדל: Lia Sgula, 36pt, כמו עד כה) */
+.book-title-main.sub-shaar-title {
+    font-family: var(--fn-h1);
+    font-size: var(--sz-h1);
+}
+
 .book-subtitle {
     font-family: var(--fn-sh-sub);
     font-size: var(--sz-sh-sub);
@@ -1106,11 +1112,16 @@ body.tabs-not-ready #sidebar::before {
     font-size: var(--sz-h2);
     font-weight: 700;
     text-align: center;
-    margin-top: 0;
+    margin-top: var(--flow-mt-h2, 0);
     margin-bottom: 20px;
     width: 100%;
     line-height: 1.25;
     flex-shrink: 0;
+}
+/* כותרת 0 (הקדמה) בעמוד הפותח: גופן וגודל מההגדרות f-h0 / s-h0 (ברירת המחדל זהה לכותרת 2, כמו עד כה) */
+.title-level-2-standalone.h0-opening-title {
+    font-family: var(--fn-h0);
+    font-size: var(--sz-h0);
 }
 
 .h2-spacer {

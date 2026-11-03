@@ -46,6 +46,8 @@ jobs:
         run: node tests/chapter-end.test.js
       - name: Fonts test (every font decodes)
         run: node tests/fonts.test.js
+      - name: Title fonts and H2 margin test
+        run: node tests/title-fonts.test.js
       - name: Check CLI syntax
         run: node --check tools/geometry-audit-cli.js
       - name: Check browser script syntax

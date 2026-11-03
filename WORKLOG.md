@@ -2,6 +2,13 @@
 
 Entries are newest first. Every change records: what, why, how it was verified, and what was NOT verified.
 
+## 4L — Connected the three controls that had no effect (editor decision 3), defaults match the existing look
+- **What:** `prop-mt-h2` now drives the top margin of standalone H2 titles (`margin-top: var(--flow-mt-h2, 0)`); `f-h0`/`s-h0` drive the H0 (introduction) opening title (new class `h0-opening-title`); `f-h1`/`s-h1` drive the title of the sub-title page (new class `sub-shaar-title`, which replaces the inline `font-size: 36pt`).
+- **Defaults changed so the book looks as before:** `prop-mt-h2` 20 -> 0 (the old 20 was never applied), `s-h0` 26 -> 17 (the H0 title was drawn with the H2 style, 17pt), `s-h1` 50 -> 36 (the sub-title page title was a fixed 36pt). Fonts already matched (`AlphaBlack, David Libre` and `Lia Sgula, Bellefair`). `default_settings.json` and the UI inputs carry the same values (checked by the test).
+- **Test-first:** `tests/title-fonts.test.js` (10 checks): before 5/10 (the 5 that protect the existing look passed, the 5 about the connection failed), after 10/10. Runs in CI.
+- **Layout effect with defaults:** none. Fresh full-document run (lab, Chromium 140.0.7339.0): 639 pages, 39 issues (0/11/28), same kinds.
+- **Behaviours worth knowing (measured, not changed):** (a) the H0 title and every page-opening title are drawn with the H2 title style; (b) with `mode-h1 = new_page_1col` the H1 text is not printed in the page body at all (only the running header uses it), so `f-h1`/`s-h1` apply only to the sub-title page mode. (c) a user who had changed the shaar title font will no longer see it affect the sub-title page title; that title now follows `f-h1`/`s-h1`.
+
 ## 4K — `file://` warning and removal of 4 broken fonts (editor decisions 7 and 10)
 - **Q7 warning:** `index.html` shows a red banner ("local server only", with the exact `python -m http.server` command) when opened as `file://`; hidden over http. Tested in `tests/ui-e2e.test.js` (now 17 checks): before 16/17, after 17/17. README states the server-only requirement.
 - **Q10 broken fonts removed:** `Msjhl-Sub1-Regular`, `Msjhl-Sub2-Regular` (5.8 MB), `Noam-Regular`, `Sticks-Regular` deleted from `fonts/` and from `fonts/fonts.json` (1754 -> 1750 entries), `fonts-extended.json` (1315 -> 1311) and `fonts-extended.css` (4 `@font-face` blocks). `tests/fonts.test.js` (3 checks; listed and referenced fonts exist, every font file decodes in Chromium): before 2/3 (the 4 fonts), after 3/3; `fonts/` now has 1,754 loadable font files. Runs in CI.
