@@ -193,8 +193,15 @@
                 e.source.postMessage({ type: 'render-error', error: err.message }, e.origin);
             }
         } else if (msg.type === 'getHTML') {
-            const html = document.getElementById('book-container')?.innerHTML || '';
-            e.source.postMessage({ type: 'html-result', html: html }, e.origin);
+            const bookContainer = document.getElementById('book-container');
+            const html = bookContainer ? bookContainer.innerHTML : '';
+            const pageCount = bookContainer ? bookContainer.querySelectorAll('.a4-page').length : 0;
+            e.source.postMessage({
+                type: 'html-result',
+                requestId: msg.requestId || null,
+                html: html,
+                pageCount: pageCount
+            }, e.origin);
         } else if (msg.type === 'print') {
             window.print();
         } else if (msg.type === 'fn-audit') {
