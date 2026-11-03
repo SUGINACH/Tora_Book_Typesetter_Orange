@@ -2,6 +2,14 @@
 
 Entries are newest first. Every change records: what, why, how it was verified, and what was NOT verified.
 
+## 4M — Resizable heading dividers: width and ratio (editor decision 9)
+- **What:** two new settings next to the heading-divider selects: `heading-divider-width` (percent of the column, default 40) and `heading-divider-ratio` (`auto` = natural proportions, default; or a number = width:height, e.g. `8` for 8:1; the SVG is stretched with `preserveAspectRatio="none"`). Invalid values fall back to `auto`.
+- **Why:** 118 of the 323 JSON dividers are near-square and taller than a page at natural proportions; the engine refuses them (by design). With a ratio they become usable.
+- **Implementation note:** in ratio mode the box uses `aspect-ratio` and its children are absolutely positioned. A first version with percent heights did not work (the SVG's own width/height attributes made the box 272x252 instead of 8:1); the test caught it.
+- **Test-first:** `tests/divider-ratio.test.js` (8 checks): before 3/8, after 8/8. Runs in CI.
+- **Layout effect with defaults:** none (`auto` takes the previous code path; the new CSS only matches `.hd-ratio`).
+- **Not applied to:** shaar dividers (main/sub title pages), which have room; say so if you want the same controls there.
+
 ## 4L — Connected the three controls that had no effect (editor decision 3), defaults match the existing look
 - **What:** `prop-mt-h2` now drives the top margin of standalone H2 titles (`margin-top: var(--flow-mt-h2, 0)`); `f-h0`/`s-h0` drive the H0 (introduction) opening title (new class `h0-opening-title`); `f-h1`/`s-h1` drive the title of the sub-title page (new class `sub-shaar-title`, which replaces the inline `font-size: 36pt`).
 - **Defaults changed so the book looks as before:** `prop-mt-h2` 20 -> 0 (the old 20 was never applied), `s-h0` 26 -> 17 (the H0 title was drawn with the H2 style, 17pt), `s-h1` 50 -> 36 (the sub-title page title was a fixed 36pt). Fonts already matched (`AlphaBlack, David Libre` and `Lia Sgula, Bellefair`). `default_settings.json` and the UI inputs carry the same values (checked by the test).

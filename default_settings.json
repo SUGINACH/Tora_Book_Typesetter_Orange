@@ -253,5 +253,7 @@
   "heading-divider-h6": "none",
   "shaar-main-divider": "none",
   "shaar-sub-divider": "none",
-  "balance-chapter-end": "balance"
+  "balance-chapter-end": "balance",
+  "heading-divider-width": "40",
+  "heading-divider-ratio": "auto"
 }

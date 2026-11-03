@@ -1118,6 +1118,11 @@ body.tabs-not-ready #sidebar::before {
     line-height: 1.25;
     flex-shrink: 0;
 }
+/* עיטור הפרדה עם יחס קבוע (heading-divider-ratio): התוכן והציור ממלאים את התיבה */
+/* הילדים ממוקמים אבסולוטית כדי שהיחס (aspect-ratio) של התיבה לא יושפע מהמידות הטבעיות של ה-SVG */
+.heading-divider-wrap.hd-ratio { position: relative; min-height: 0; overflow: hidden; }
+.heading-divider-wrap.hd-ratio > div { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none !important; margin: 0 !important; }
+.heading-divider-wrap.hd-ratio svg { position: absolute; inset: 0; width: 100% !important; height: 100% !important; display: block; }
 /* כותרת 0 (הקדמה) בעמוד הפותח: גופן וגודל מההגדרות f-h0 / s-h0 (ברירת המחדל זהה לכותרת 2, כמו עד כה) */
 .title-level-2-standalone.h0-opening-title {
     font-family: var(--fn-h0);

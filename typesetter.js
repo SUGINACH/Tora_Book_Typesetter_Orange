@@ -904,7 +904,9 @@ function maybeGetHeadingDivider(level) {
     const dividerType = document.getElementById('heading-divider-h' + level)?.value || 'none';
     if (dividerType === 'none') return '';
     if (typeof getHeadingDividerHTML !== 'function') return '';
-    return getHeadingDividerHTML(dividerType, 40);
+    const width = parseFloat(document.getElementById('heading-divider-width')?.value) || 40;
+    const ratio = document.getElementById('heading-divider-ratio')?.value || 'auto';
+    return getHeadingDividerHTML(dividerType, width, ratio);
 }
 /* מכניס את העיטור לסוף container רק אם הוא נדרש, יש משהו לפניו, והוא נכנס (fits(גובה) מחזיר true). מחזיר את האלמנט או null. */
 function tryInsertHeadingDivider(container, level, fits) {

@@ -164,10 +164,14 @@ function getSectionDividerHTML(type) {
    גרסה פשוטה של getSectionDividerHTML — בלי grid-column, עם margin קטן יותר.
    [תיקון] widthPercent — אחוז מרוחב הטור (40% כברירת מחדל). העיטור מקבל max-width
    בלבד, כדי שלא יהיה ענק. */
-function getHeadingDividerHTML(type, widthPercent) {
+function getHeadingDividerHTML(type, widthPercent, ratio) {
     if (!type || type === 'none') return '';
     const wp = widthPercent || 40;
-    const dimStyle = `max-width: ${wp}%; `;
+    // ratio: מספר חיובי = יחס רוחב:גובה (למשל 8 => 8:1). העיטור נמתח ליחס הזה (preserveAspectRatio="none").
+    // בלי ratio (או ערך לא תקין) העיטור נשאר בפרופורציות הטבעיות, עם max-width.
+    const r = parseFloat(ratio);
+    const useRatio = isFinite(r) && r > 0;
+    const dimStyle = useRatio ? `width: ${wp}%; aspect-ratio: ${r} / 1; ` : `max-width: ${wp}%; `;
 
     let content = '';
     if (SECTION_DIVIDERS[type]) {
@@ -177,7 +181,10 @@ function getHeadingDividerHTML(type, widthPercent) {
         content = EXTERNAL_ALL_ORNAMENTS[type];
     }
     if (!content) return '';
-    return `<div class="heading-divider-wrap" style="text-align: center; margin: 10px auto; display:flex; justify-content:center; align-items:center; ${dimStyle}">${content}</div>`;
+    if (useRatio) {
+        content = content.replace(/<svg\b([^>]*)>/i, (m, attrs) => '<svg' + attrs.replace(/\s+preserveAspectRatio\s*=\s*("[^"]*"|'[^']*')/i, '') + ' preserveAspectRatio="none">');
+    }
+    return `<div class="heading-divider-wrap${useRatio ? ' hd-ratio' : ''}" style="text-align: center; margin: 10px auto; display:flex; justify-content:center; align-items:center; ${dimStyle}">${content}</div>`;
 }
 
 function getHeadingOrnamentHTML(type, isTop = false, isH2 = true) {
