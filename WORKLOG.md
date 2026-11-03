@@ -93,3 +93,12 @@ Entries are newest first. Every change records: what, why, how it was verified, 
 - CLI records `browserVersion`, `playwrightVersion`, `inputSha256`, `fontsCssSha256` and fails (exit 7) on any external request.
 - Verified: fresh clone from GitHub, offline, Chromium 140.0.7339.0: 639 pages, 40 issues (0/12/28); GitHub Actions: both workflows succeeded.
 - See `docs/prep/06_LAB_FINDINGS.md` for the evidence and its limits.
+
+
+## 2026-11-03 — Fix rendered HTML export from the iframe
+
+- **Root cause:** `exportRenderedHTML()` searched for `#book-container` in the parent document, although the renderer and rendered book live inside `#render-frame`. This caused the "no rendered document" alert after successful typesetting.
+- **Fix:** the UI now requests the rendered HTML through the existing `renderer-bridge.js` postMessage channel, correlates the response with a `requestId`, verifies that it came from the iframe, and checks that the returned document contains at least one rendered page. The bridge returns both the HTML and `pageCount`.
+- **Renderer context:** CSS variables are read from the iframe document, and CSS/font asset URLs are resolved relative to `renderer.html`.
+- **Regression coverage:** `tests/ui-e2e.test.js` now typesets through the actual UI/iframe and verifies that the HTML export downloads a standalone document containing the same number of pages as the iframe.
+- **Verification boundary:** syntax checks have passed. The end-to-end browser test and downloaded-file assertion must still pass in CI; no manual interactive browser session has been claimed.
