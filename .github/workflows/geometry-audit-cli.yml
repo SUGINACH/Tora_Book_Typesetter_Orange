@@ -50,11 +50,13 @@ jobs:
         run: node tests/title-fonts.test.js
       - name: Divider ratio test
         run: node tests/divider-ratio.test.js
+      - name: Text check unit test (brackets between headings)
+        run: node tests/text-check.test.js
       - name: Check CLI syntax
         run: node --check tools/geometry-audit-cli.js
       - name: Check browser script syntax
         run: |
-          for file in decorations.js typesetter.js settings-manager.js app.js renderer-bridge.js geometry-audit.js; do
+          for file in decorations.js typesetter.js settings-manager.js app.js renderer-bridge.js geometry-audit.js text-check.js; do
             echo "Checking $file"
             node --check "$file"
           done

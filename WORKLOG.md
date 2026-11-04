@@ -2,6 +2,14 @@
 
 Entries are newest first. Every change records: what, why, how it was verified, and what was NOT verified.
 
+## 4N — Pre-typesetting text check button (editor decision 6)
+- **What:** a button "✅ בדיקת טקסט" next to "ייבוא טקסט". It checks the text before typesetting and lists problems; clicking a problem selects its line in the editor. After importing a file or pasting, the button shows the number of problems (red) or ✓ (green). Logic lives in `text-check.js` (pure, also loadable in Node); the UI is in `app.js`/`index.html`.
+- **Rule (editor):** bracketed text `( ... )` or `[ ... ]` must not contain headings of level 1-6. Also reported: a closing bracket with nothing open, a closing bracket of the wrong kind, and a bracket that is never closed. Heading lines are not scanned for brackets (brackets in a title belong to the title); level 0 and level 7 are not part of the rule.
+- **One documented exception:** a Hebrew enumerator at the start of a line such as `כא) והיה אם שמוע` is not a bracket, and only when nothing is open (otherwise `א)` closes normally). Without it the canonical text gave a false report at line 4893.
+- **Tests:** `tests/text-check.test.js` (19 checks, pure Node: fails before the module exists, 19/19 after) and 5 new checks in `tests/ui-e2e.test.js` (button, panel, jump to line, clean text, badge after import): before 13/17 and a crash, after 23/23 (the file also grew by the HTML export checks of another commit). Both run in CI; `text-check.js` is now in the syntax check list.
+- **Result on the canonical text (1.9 MB, 5,702 lines, ~10 ms):** 5 findings, all real, none changed here because they are content: an extra `)` at line 1413 and at line 3170, and the group at lines 5446-5451 (a `[` and a `(` opened in line 5446, closed by a wrong `]`, with `כותרת 3` at line 5451 inside them). These are the same spots behind the 3 `square-bracket-scope` audit findings.
+- **Not verified:** the panel's look (no screenshot reviewed); behaviour on very long lists (the list is not virtualized).
+
 ## 4M — Resizable heading dividers: width and ratio (editor decision 9)
 - **What:** two new settings next to the heading-divider selects: `heading-divider-width` (percent of the column, default 40) and `heading-divider-ratio` (`auto` = natural proportions, default; or a number = width:height, e.g. `8` for 8:1; the SVG is stretched with `preserveAspectRatio="none"`). Invalid values fall back to `auto`.
 - **Why:** 118 of the 323 JSON dividers are near-square and taller than a page at natural proportions; the engine refuses them (by design). With a ratio they become usable.

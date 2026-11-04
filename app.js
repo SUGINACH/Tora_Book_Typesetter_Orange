@@ -24,6 +24,7 @@
 const resizer = document.getElementById('resizer');
 const sidebar = document.getElementById('sidebar');
 const editorElem = document.getElementById('raw-input');
+if (editorElem) editorElem.addEventListener('paste', function () { setTimeout(function () { if (typeof updateTextCheckBadge === 'function') updateTextCheckBadge(); }, 150); });
 let isResizing = false;
 
 /* מבנים גלובליים לתיאום מיקומי שערים ונכסים טעונים */
@@ -220,6 +221,7 @@ function handleTxtFileImport(event) {
     reader.onload = function(e) {
         if (editorElem) {
             editorElem.value = e.target.result;
+            if (typeof updateTextCheckBadge === 'function') updateTextCheckBadge();
             // [תיקון] לא מפעילים עימוד אוטומטי אחרי ייבוא טקסט.
             // המשתמש ילחץ "עדכן ועמד מחדש" כדי להתחיל עימוד.
             // זה מונע עימוד כפול (פעם אחרי ייבוא, פעם אחרי הגדרות) ונותן שליטה למשתמש.
@@ -228,6 +230,60 @@ function handleTxtFileImport(event) {
     };
     reader.readAsText(file);
     event.target.value = '';
+}
+
+/* ==========================================================================
+   בדיקת טקסט לפני עימוד (text-check.js): סוגריים וכותרות 1–6 בתוך טקסט מוסגר
+   ========================================================================== */
+const TEXT_CHECK_LABEL = { 'heading-inside-brackets': 'כותרת בתוך סוגריים', 'unmatched-closer': 'סוגר ללא פותח', 'mismatched-bracket': 'סוגר לא מתאים', 'unclosed-bracket': 'סוגר שלא נסגר' };
+function updateTextCheckBadge(res) {
+    const badge = document.getElementById('text-check-badge');
+    if (!badge || typeof TextCheck === 'undefined') return;
+    res = res || TextCheck.check(getCleanEditorText());
+    badge.textContent = res.issues.length ? String(res.issues.length) : '✓';
+    badge.classList.toggle('has-issues', res.issues.length > 0);
+    return res;
+}
+function runTextCheck() {
+    if (typeof TextCheck === 'undefined') return;
+    const res = updateTextCheckBadge();
+    const panel = document.getElementById('text-check-panel');
+    const list = document.getElementById('text-check-list');
+    const summary = document.getElementById('text-check-summary');
+    if (!panel || !list || !summary) return;
+    list.innerHTML = '';
+    if (!res.issues.length) {
+        summary.textContent = 'הטקסט תקין: לא נמצאו בעיות סוגריים (' + res.lineCount + ' שורות נבדקו).';
+    } else {
+        summary.textContent = 'נמצאו ' + res.issues.length + ' בעיות (' + res.lineCount + ' שורות נבדקו). לחיצה על בעיה מסמנת את השורה בעורך.';
+        res.issues.forEach(function (issue) {
+            const li = document.createElement('li');
+            li.setAttribute('data-check-line', String(issue.line));
+            li.className = 'text-check-item';
+            const tag = document.createElement('span'); tag.className = 'text-check-tag'; tag.textContent = TEXT_CHECK_LABEL[issue.type] || issue.type;
+            const msg = document.createElement('span'); msg.textContent = ' ' + issue.message;
+            li.appendChild(tag); li.appendChild(msg);
+            li.addEventListener('click', function () { goToEditorLine(issue.line); });
+            list.appendChild(li);
+        });
+    }
+    panel.style.display = 'block';
+}
+function closeTextCheck() {
+    const panel = document.getElementById('text-check-panel');
+    if (panel) panel.style.display = 'none';
+}
+function goToEditorLine(line) {
+    const ed = document.getElementById('raw-input');
+    if (!ed) return;
+    let el = ed.querySelector('.editor-line[data-line-idx="' + (line - 1) + '"]');
+    if (!el) { const all = ed.querySelectorAll('.editor-line'); el = all[line - 1] || null; }
+    if (!el) return;
+    el.scrollIntoView({ block: 'center' });
+    const range = document.createRange(); range.selectNodeContents(el);
+    const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+    el.classList.add('text-check-flash');
+    setTimeout(function () { el.classList.remove('text-check-flash'); }, 1500);
 }
 
 /* ==========================================================================

@@ -1819,3 +1819,18 @@ body.hide-shaar-editor .theme-bounded-content { border: none !important; box-sha
     text-wrap: balance;
 }
 
+
+
+/* ===== בדיקת טקסט לפני עימוד ===== */
+.text-check-badge { display: inline-block; min-width: 1.2em; margin-inline-start: 4px; padding: 0 5px; border-radius: 9px; background: #16a34a; color: #fff; font-size: 11px; line-height: 1.6; text-align: center; }
+.text-check-badge:empty { display: none; }
+.text-check-badge.has-issues { background: #dc2626; }
+.text-check-panel { position: absolute; z-index: 50; top: 52px; inset-inline: 12px; max-height: 55%; overflow: auto; background: #fff; color: #111827; border: 1px solid #94a3b8; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.25); padding: 10px 14px; font-size: 13px; }
+.text-check-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.text-check-head button { border: 0; background: transparent; font-size: 16px; cursor: pointer; }
+.text-check-summary { margin-bottom: 6px; color: #334155; }
+.text-check-list { margin: 0; padding-inline-start: 22px; }
+.text-check-item { cursor: pointer; padding: 3px 4px; border-radius: 4px; }
+.text-check-item:hover { background: #fee2e2; }
+.text-check-tag { display: inline-block; padding: 0 6px; border-radius: 4px; background: #fecaca; color: #7f1d1d; font-weight: 600; }
+.editor-line.text-check-flash { background: #fde68a; transition: background .3s; }

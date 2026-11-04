@@ -108,6 +108,26 @@ const TEXT = 'כותרת 1 מספר 1 - הקדמות וכללים - יום הש�
     const dividers = await frame().evaluate(() => document.querySelectorAll('.heading-divider-wrap').length);
     check('heading divider chosen from the UI list is rendered', dividers >= 1, `dividers: ${dividers} (id ${divId})`);
 
+    // ---- pre-typesetting text check (brackets between headings): button, panel, jump to line, badge after import
+    const BAD_TEXT = ['כותרת 1 מספר 1 - ספר', 'פסקה (שנפתחת', 'כותרת 3 מספר 1 - בתוך סוגריים', 'סוף).'].join('\n');
+    check('the text check button exists next to the import button', await page.evaluate(() => !!document.getElementById('btn-check-text')), 'btn-check-text missing');
+    await page.evaluate(t => { document.getElementById('raw-input').value = t; }, BAD_TEXT);
+    await page.evaluate(() => { const b = document.getElementById('btn-check-text'); if (b) b.click(); });
+    const panel = await page.evaluate(() => { const p = document.getElementById('text-check-panel'); return p ? { shown: getComputedStyle(p).display !== 'none', items: p.querySelectorAll('[data-check-line]').length } : null; });
+    check('the check lists the heading that sits inside brackets (1 issue)', !!panel && panel.shown && panel.items === 1, JSON.stringify(panel));
+    await page.evaluate(() => { const it = document.querySelector('#text-check-panel [data-check-line="3"]'); if (it) it.click(); });
+    const selIdx = await page.evaluate(() => { const s = window.getSelection(); const n = s && s.anchorNode; const el = n && (n.nodeType === 1 ? n : n.parentElement); const line = el && el.closest('.editor-line'); return line ? line.getAttribute('data-line-idx') : null; });
+    check('clicking an issue selects that line in the editor (line 3 = index 2)', selIdx === '2', `selected line idx: ${selIdx}`);
+    await page.evaluate(t => { document.getElementById('raw-input').value = t; }, ['כותרת 1 מספר 1 - ספר', 'פסקה (תקינה) ו[עוד].', 'כותרת 3 מספר 1 - כותרת'].join('\n'));
+    await page.evaluate(() => document.getElementById('btn-check-text').click());
+    const clean = await page.evaluate(() => { const p = document.getElementById('text-check-panel'); return p ? { items: p.querySelectorAll('[data-check-line]').length, ok: /תקין/.test(p.textContent) } : null; });
+    check('a clean text is reported as OK', !!clean && clean.items === 0 && clean.ok, JSON.stringify(clean));
+    await page.evaluate(() => { const p = document.getElementById('text-check-panel'); const c = p && p.querySelector('[data-check-close]'); if (c) c.click(); });
+    await page.setInputFiles('#file-txt-import', { name: 'bad.txt', mimeType: 'text/plain', buffer: Buffer.from(BAD_TEXT, 'utf8') });
+    await page.waitForFunction(() => { const b = document.getElementById('text-check-badge'); return !!b && /1/.test(b.textContent); }, null, { timeout: 15000 }).catch(() => {});
+    const badge = await page.evaluate(() => { const b = document.getElementById('text-check-badge'); return b ? b.textContent.trim() : null; });
+    check('after importing a text file the button shows how many issues were found', badge === '1', `badge='${badge}'`);
+
     // ---- file:// is not supported (editor decision): opening index.html directly must say so, a local server must not
     const httpBanner = await page.evaluate(() => { const b = document.getElementById('file-protocol-warning'); return !!b && getComputedStyle(b).display !== 'none'; });
     check('over http the unsupported-file:// warning is hidden', httpBanner === false, `visible=${httpBanner}`);

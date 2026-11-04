@@ -50,11 +50,20 @@
         <div class="text-actions-bar">
           <button type="button" id="btn-retypeset" class="btn-tool btn-primary" onclick="typesetDocument()">⚡ עדכן ועמד מחדש</button>
           <button type="button" class="btn-tool btn-import" onclick="document.getElementById('file-txt-import').click()">📄 ייבוא טקסט</button>
+          <button type="button" id="btn-check-text" class="btn-tool btn-secondary" onclick="runTextCheck()" title="בדיקה מוקדמת של הטקסט לפני עימוד: שלמות סוגריים, וכותרות 1–6 שלא אמורות להופיע בתוך טקסט מוסגר">✅ בדיקת טקסט <span id="text-check-badge" class="text-check-badge"></span></button>
           <button type="button" class="btn-tool btn-secondary" onclick="printRendered()">🖨️ הדפסה / PDF</button>
           <button type="button" id="btn-load-extended-fonts" class="btn-tool btn-secondary" onclick="loadExtendedFonts()">📚 טען גופנים נוספים</button>
           <button type="button" id="btn-export-html" class="btn-tool btn-secondary" onclick="exportRenderedHTML()">💾 ייצוא HTML</button>
           <input type="file" id="file-txt-import" accept=".txt,.text,.md" style="display:none" onchange="handleTxtFileImport(event)">
         </div>
+      </div>
+      <div id="text-check-panel" class="text-check-panel" role="dialog" aria-label="בדיקת טקסט" style="display:none;" dir="rtl">
+        <div class="text-check-head">
+          <strong>בדיקת טקסט לפני עימוד</strong>
+          <button type="button" data-check-close onclick="closeTextCheck()" title="סגור">✕</button>
+        </div>
+        <div id="text-check-summary" class="text-check-summary"></div>
+        <ol id="text-check-list" class="text-check-list"></ol>
       </div>
       <div class="editor-wrapper">
         <div id="raw-input" contenteditable="true" spellcheck="false" placeholder="הדבק כאן את הטקסט המלא..."></div>
@@ -1422,6 +1431,7 @@
   <script src="decorations.js"></script>
   <script src="typesetter.js"></script>
   <script src="settings-manager.js"></script>
+  <script src="text-check.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
