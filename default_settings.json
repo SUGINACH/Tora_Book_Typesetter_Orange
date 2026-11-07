@@ -255,5 +255,7 @@
   "shaar-sub-divider": "none",
   "balance-chapter-end": "balance",
   "heading-divider-width": "40",
-  "heading-divider-ratio": "auto"
+  "heading-divider-ratio": "auto",
+  "aq-word-spacing": false,
+  "aq-word-spacing-max": "0.06"
 }

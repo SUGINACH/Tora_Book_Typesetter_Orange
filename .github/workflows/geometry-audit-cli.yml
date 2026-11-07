@@ -52,6 +52,8 @@ jobs:
         run: node tests/divider-ratio.test.js
       - name: Text check unit test (brackets between headings)
         run: node tests/text-check.test.js
+      - name: Word-spacing candidate test
+        run: node tests/aq-word-spacing.test.js
       - name: Check CLI syntax
         run: node --check tools/geometry-audit-cli.js
       - name: Check browser script syntax

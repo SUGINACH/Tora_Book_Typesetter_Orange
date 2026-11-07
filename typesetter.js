@@ -2313,6 +2313,53 @@ function balanceColumns(block, colWidth, styleObj, snapshot, availableHeight = I
    (2) מעבר אחורה: אם ההערות האחרונות חורגות מתחתית הבלוק, מעלים אותן (ואת מי שמעליהן לפי הצורך).
    (3) הערה שעדיין לא נכנסת בשוליים הללו עוברת לשוליים של המשך הפסקה (אם קיים), ושם נפרסת מחדש.
    ========================================================================== */
+/* ---- איזון עדין ברווח מילים (aq-word-spacing), מועמד מדוד ----
+   גרסה מבוקרת של רעיון ה-aq של Gold. אחרי שבלוק דו-טורי כבר סודר, אם נשאר פער של יותר מ-2px בין הטורים, מנסים שינוי קטן
+   של word-spacing בפסקה האחרונה של אחד הטורים (הטור הגבוה צפוף יותר / הנמוך רופף יותר, עד aq-word-spacing-max באם),
+   מודדים את התוצאה בפועל ושומרים אותה רק אם הפער קטן ובלוק לא גדל. אחרת הכול משוחזר.
+   למה רק הפסקה האחרונה בטור: מיקום הערות הצד נגזר מ-offsetTop של הפסקה המכילה אותן; שינוי באמצע הטור היה מזיז הערות שכבר מוקמו.
+   stretchOnly (מסלול סוף-פרק, אחרי שההערות מוקמו): מותר רק למתוח את הטור הקצר, כך שגובה הבלוק לא משתנה.
+   כבוי כברירת מחדל. מתועד במאפיינים data-layout-aq-word-spacing / -diff-before / -diff-after / -ws. */
+function tryWordSpacingBalance(block2Col, rCol, lCol, availOuterH, stretchOnly) {
+    if (document.getElementById('aq-word-spacing')?.checked !== true) return;
+    if (!block2Col || !rCol || !lCol) return;
+    if (block2Col.getAttribute('data-layout-balance-skip-reason') === 'balance-disabled-by-chapter-end-fill-policy') return;
+    const before = rCol.scrollHeight - lCol.scrollHeight;
+    if (Math.abs(before) <= 2 || Math.abs(before) > 60) return;
+    const maxEm = Math.min(0.2, Math.max(0.01, parseFloat(document.getElementById('aq-word-spacing-max')?.value) || 0.06));
+    const step = 0.01;
+    const startMax = Math.max(rCol.scrollHeight, lCol.scrollHeight);
+    const overhead = Math.max(0, block2Col.getBoundingClientRect().height - startMax);
+    const limit = Math.min(startMax, Math.max(0, availOuterH - overhead)) + 0.5; // הבלוק לא יגדל ולא יחרוג
+    const lastP = col => { const e = col.lastElementChild; return e && e.tagName === 'P' ? e : null; };
+    const tall = before > 0 ? rCol : lCol, short = before > 0 ? lCol : rCol;
+    let best = null;
+    const tryParagraph = (p, sign) => {
+        if (!p) return;
+        const prev = p.style.wordSpacing;
+        for (let k = 1; k * step <= maxEm + 1e-9; k++) {
+            const w = sign * Math.round(k * step * 100) / 100;
+            p.style.wordSpacing = w + 'em';
+            const d = Math.abs(rCol.scrollHeight - lCol.scrollHeight);
+            const m = Math.max(rCol.scrollHeight, lCol.scrollHeight);
+            if (m <= limit && d < (best ? best.d : Math.abs(before)) - 0.5) best = { p, w, d };
+        }
+        p.style.wordSpacing = prev;
+    };
+    if (!stretchOnly) tryParagraph(lastP(tall), -1);
+    tryParagraph(lastP(short), +1);
+    block2Col.setAttribute('data-layout-aq-diff-before', String(Math.abs(before)));
+    if (best) {
+        best.p.style.wordSpacing = best.w + 'em';
+        block2Col.setAttribute('data-layout-aq-word-spacing', 'applied');
+        block2Col.setAttribute('data-layout-aq-ws', String(best.w));
+        block2Col.setAttribute('data-layout-aq-diff-after', String(best.d));
+    } else {
+        block2Col.setAttribute('data-layout-aq-word-spacing', 'none');
+        block2Col.setAttribute('data-layout-aq-diff-after', String(Math.abs(before)));
+    }
+}
+
 function finalizeNotePositions(notesList, columnBoundaryHeight) {
     const GAP = 4; // מרווח מינימלי בין הערות סמוכות (px)
     const groups = new Map();
@@ -5206,6 +5253,7 @@ function typesetDocumentCore() {
                     if (!keepChapterEndUnbalanced) {
                         balanceColumns(block2Col, colWidth, styleObj, blockNoteSnapshot,
                             block2Col.getBoundingClientRect().height > actualAvailH ? balanceAvailH : actualAvailH);
+                        tryWordSpacingBalance(block2Col, rCol, lCol, actualAvailH, true);
                     } else {
                         block2Col.setAttribute('data-layout-balance-routing', 'chapter-end-fill-policy');
                         block2Col.setAttribute('data-layout-balance-skip-reason', 'balance-disabled-by-chapter-end-fill-policy');
@@ -5312,6 +5360,7 @@ function typesetDocumentCore() {
                     postfitInnerOverflow: parseFloat(block2Col.getAttribute('data-layout-postfit-inner-overflow')) || 0
                 });
 
+                tryWordSpacingBalance(block2Col, rCol, lCol, actualAvailH, false);
                 remPageHeight = Math.max(0, pageLayout.bodyFlow.getBoundingClientRect().bottom - block2Col.getBoundingClientRect().bottom);
                 pageBodyHasContent = true;
                 finalizeNotePositions(pagePendingNotes, Math.max(rCol.scrollHeight, lCol.scrollHeight));

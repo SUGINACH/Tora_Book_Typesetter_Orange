@@ -666,6 +666,16 @@
                 </select>
               </div>
 
+              <div class="panel-sub-header">איזון עדין ברווח מילים</div>
+              <div class="inline-cfg-row">
+                <label class="btn-toggle" style="flex:1;" title="אחרי שבלוק דו־טורי סודר, אם נשאר פער של יותר מ־2px בין הטורים, מנסים שינוי זעיר ברווחי המילים של הפסקה האחרונה בטור, מודדים, ושומרים רק אם הפער קטן והבלוק לא גדל. כבוי כברירת מחדל.">
+                  <input type="checkbox" id="aq-word-spacing" onchange="if (typeof typesetDocument === 'function') typesetDocument();">
+                  <span class="btn-toggle-box"><span class="check-icon">✓</span>איזון ברווח מילים (מועמד מדוד)</span>
+                </label>
+                <label title="השינוי המרבי ברווח מילים, ב־em (0.06em הוא כ־20% מרווח רגיל)">מרבי (em):</label>
+                <input type="number" id="aq-word-spacing-max" value="0.06" min="0.01" max="0.2" step="0.01" class="size-input" onchange="if (typeof typesetDocument === 'function') typesetDocument();">
+              </div>
+
               <div class="panel-sub-header">גוף הטקסט וריווח שורות</div>
               <div class="inline-cfg-row">
                 <label>גוף הטקסט:</label>
